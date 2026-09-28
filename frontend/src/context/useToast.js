@@ -6,16 +6,7 @@ export function useToast() {
   if (!context) {
     throw new Error("useToast must be used within a ToastProvider");
   }
-
-  // Ensure consumer always receives the unified toast API
-  const api =
-    context.toast &&
-    typeof context.toast.success === "function" &&
-    typeof context.success !== "function"
-      ? context.toast
-      : context;
-
-  return api;
+  return context;
 }
 
 export default useToast;

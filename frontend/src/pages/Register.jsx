@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { getToken, setToken, loginUser } from "../services/api";
+import { getToken, registerUser } from "../services/api";
 import { useToast } from "../context/useToast";
 import tracexLogo from "../assets/tracex-logo.png";
 
-export default function Login() {
+export default function Register() {
   const navigate = useNavigate();
   const toast = useToast();
 
@@ -14,26 +14,25 @@ export default function Login() {
     }
   }, [navigate]);
 
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (event) => {
+  const handleRegister = async (event) => {
     event.preventDefault();
 
     setError("");
     setLoading(true);
 
     try {
-      const data = await loginUser(email, password);
-
-      setToken(data.access_token);
-      toast.success("Authentication successful. Welcome to TRACE-X.");
-      navigate("/");
+      await registerUser(name, email, password);
+      toast.success("Registration successful. Please log in.");
+      navigate("/login");
     } catch (err) {
-      console.error("Login error:", err);
-      const msg = err.message || "Unable to connect to TRACE-X backend.";
+      console.error("Registration error:", err);
+      const msg = err.message || "Unable to register.";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -52,13 +51,24 @@ export default function Login() {
 
         <span className="login-label">TRACE-X / SECURITY</span>
 
-        <h1>Command Center</h1>
+        <h1>Register</h1>
 
         <p>
-          Sign in to access your device security dashboard.
+          Create a new account for the TRACE-X system.
         </p>
 
-        <form onSubmit={handleLogin}>
+        <form onSubmit={handleRegister}>
+          <label htmlFor="name">Full Name</label>
+
+          <input
+            id="name"
+            type="text"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Enter your name"
+            required
+          />
+
           <label htmlFor="email">Email</label>
 
           <input
@@ -78,8 +88,9 @@ export default function Login() {
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            placeholder="Enter your password"
-            autoComplete="current-password"
+            placeholder="Choose a password (min. 8 characters)"
+            autoComplete="new-password"
+            minLength="8"
             required
           />
 
@@ -90,13 +101,12 @@ export default function Login() {
           )}
 
           <button type="submit" disabled={loading}>
-            {loading ? "AUTHENTICATING..." : "SIGN IN"}
+            {loading ? "REGISTERING..." : "REGISTER"}
           </button>
         </form>
         
-        <div style={{ marginTop: "1.5rem", display: "flex", justifyContent: "space-between", fontSize: "0.9rem" }}>
-            <Link to="/forgot-password" style={{ color: "var(--tx-text-secondary)" }}>Forgot Password?</Link>
-            <Link to="/register" style={{ color: "var(--tx-accent-primary)" }}>Create Account</Link>
+        <div style={{ marginTop: "1rem", textAlign: "center" }}>
+            <Link to="/login" style={{ color: "var(--tx-accent-primary)" }}>Already have an account? Sign In</Link>
         </div>
       </div>
     </div>

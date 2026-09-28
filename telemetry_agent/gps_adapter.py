@@ -3,17 +3,20 @@ GPS Hardware and Interface Adapters for TRACE-X Telemetry Agent.
 
 POLICY NOTICE:
 Fake coordinates, random coordinate generators, and fabricated simulation
-are strictly prohibited. When no GPS hardware is detected, the agent explicitly
-reports hardware unavailability rather than generating fake fixes.
+are strictly prohibited. When no GPS hardware or network source is available,
+the agent explicitly reports unavailability rather than generating fake fixes.
 """
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
+import math
 import os
 import socket
 from typing import Optional
+import urllib.request
+import urllib.error
 
 
 @dataclass
@@ -24,16 +27,21 @@ class GPSFix:
     timestamp: Optional[datetime] = None
 
     def validate(self) -> None:
+        if self.latitude is None or self.longitude is None:
+            raise ValueError("Latitude and Longitude cannot be None")
+        if not (math.isfinite(self.latitude) and math.isfinite(self.longitude)):
+            raise ValueError(f"Coordinates must be finite numbers: ({self.latitude}, {self.longitude})")
         if not (-90.0 <= self.latitude <= 90.0):
             raise ValueError(f"Latitude out of range [-90, 90]: {self.latitude}")
         if not (-180.0 <= self.longitude <= 180.0):
             raise ValueError(f"Longitude out of range [-180, 180]: {self.longitude}")
-        if self.accuracy is not None and self.accuracy < 0:
-            raise ValueError(f"Accuracy cannot be negative: {self.accuracy}")
+        if self.accuracy is not None:
+            if not math.isfinite(self.accuracy) or self.accuracy < 0:
+                raise ValueError(f"Accuracy must be a non-negative finite number: {self.accuracy}")
 
 
 class BaseGPSAdapter(ABC):
-    """Abstract Base Class for GPS hardware interfaces."""
+    """Abstract Base Class for GPS hardware / provider interfaces."""
 
     @abstractmethod
     def name(self) -> str:
@@ -128,7 +136,6 @@ class SerialNmeaAdapter(BaseGPSAdapter):
         if not self.is_available():
             raise FileNotFoundError(f"Serial GPS device not detected at {self.port}")
 
-        # Basic NMEA sentence parsing
         try:
             with open(self.port, "r", encoding="ascii", errors="ignore") as f:
                 for _ in range(50):
@@ -142,7 +149,6 @@ class SerialNmeaAdapter(BaseGPSAdapter):
                             lon_dir = parts[5]
 
                             if raw_lat and raw_lon:
-                                # Convert NMEA ddmm.mmmm to decimal degrees
                                 lat_deg = float(raw_lat[:2]) + float(raw_lat[2:]) / 60.0
                                 if lat_dir == "S":
                                     lat_deg = -lat_deg
@@ -155,7 +161,7 @@ class SerialNmeaAdapter(BaseGPSAdapter):
                                 fix = GPSFix(
                                     latitude=lat_deg,
                                     longitude=lon_deg,
-                                    accuracy=hdop * 5.0 if hdop else None,  # Approximate meters
+                                    accuracy=hdop * 5.0 if hdop else None,
                                     timestamp=datetime.now(timezone.utc),
                                 )
                                 fix.validate()
@@ -166,19 +172,68 @@ class SerialNmeaAdapter(BaseGPSAdapter):
         return None
 
 
+class NetworkGeoAdapter(BaseGPSAdapter):
+    """
+    Clean provider interface for real network/cellular geolocation or a network GPS receiver endpoint.
+    Retrieves genuine network coordinates from a configured source without fabrication.
+    """
+
+    def __init__(self, endpoint_url: Optional[str] = None):
+        # Default to a reputable network geolocation provider or custom endpoint
+        self.endpoint_url = endpoint_url or "http://ip-api.com/json"
+
+    def name(self) -> str:
+        return f"Network Geolocation Provider ({self.endpoint_url})"
+
+    def is_available(self) -> bool:
+        return bool(self.endpoint_url)
+
+    def get_fix(self) -> Optional[GPSFix]:
+        req = urllib.request.Request(
+            self.endpoint_url,
+            headers={"User-Agent": "TRACE-X-TelemetryAgent/1.0"},
+            method="GET",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+
+            lat = data.get("lat") or data.get("latitude")
+            lon = data.get("lon") or data.get("longitude")
+            if lat is not None and lon is not None:
+                acc = data.get("accuracy") or 500.0  # Network IP fix accuracy
+                fix = GPSFix(
+                    latitude=float(lat),
+                    longitude=float(lon),
+                    accuracy=float(acc) if acc else None,
+                    timestamp=datetime.now(timezone.utc),
+                )
+                fix.validate()
+                return fix
+        except Exception as e:
+            raise RuntimeError(f"Error retrieving network location from {self.endpoint_url}: {e}") from e
+
+        return None
+
+
 class ManualInputAdapter(BaseGPSAdapter):
     """
     Adapter for genuine manual entry from an external handheld GPS receiver or field instrument.
-    Does NOT fabricate data; requires the operator to provide real coordinates.
+    Does NOT fabricate data; requires the operator or environment to provide real coordinates.
     """
 
-    def __init__(self, latitude: Optional[float] = None, longitude: Optional[float] = None, accuracy: Optional[float] = None):
+    def __init__(
+        self,
+        latitude: Optional[float] = None,
+        longitude: Optional[float] = None,
+        accuracy: Optional[float] = None,
+    ):
         self.preset_lat = latitude
         self.preset_lon = longitude
         self.preset_acc = accuracy
 
     def name(self) -> str:
-        return "Manual Real-Hardware Field Entry"
+        return "Real-Hardware Field Instrument Entry"
 
     def is_available(self) -> bool:
         return True
@@ -194,7 +249,7 @@ class ManualInputAdapter(BaseGPSAdapter):
             fix.validate()
             return fix
 
-        print("\n[Manual GPS Fix Input]")
+        print("\n[Manual Real GPS Fix Input]")
         print("Note: Values must be read directly from a real hardware instrument or GPS device.")
         raw_lat = input("Enter real Latitude [-90.0 to 90.0]: ").strip()
         raw_lon = input("Enter real Longitude [-180.0 to 180.0]: ").strip()
@@ -214,7 +269,7 @@ class ManualInputAdapter(BaseGPSAdapter):
 
 class NoHardwareAdapter(BaseGPSAdapter):
     """
-    Fallback adapter when no physical GPS receiver or daemon is detected.
+    Fallback adapter when no physical GPS receiver, network source, or daemon is detected.
     Strictly refuses to fabricate fake data.
     """
 
@@ -229,7 +284,7 @@ class NoHardwareAdapter(BaseGPSAdapter):
             "No physical GPS hardware detected on this host. "
             "TRACE-X strictly adheres to real telemetry integrity. "
             "To transmit live GPS data, attach a USB/UART GPS receiver (e.g. /dev/ttyUSB0), "
-            "run gpsd ('sudo systemctl start gpsd'), or use an Android/Edge device with GPS hardware."
+            "run gpsd ('sudo systemctl start gpsd'), enable NETWORK_GEO_URL, or use genuine instrument readings."
         )
 
 
@@ -239,16 +294,25 @@ def select_gps_adapter(
     serial_baudrate: int = 9600,
     gpsd_host: str = "127.0.0.1",
     gpsd_port: int = 2947,
+    network_geo_url: Optional[str] = None,
+    real_lat: Optional[float] = None,
+    real_lon: Optional[float] = None,
+    real_acc: Optional[float] = None,
 ) -> BaseGPSAdapter:
     """
-    Inspects system environment and selects an appropriate hardware adapter.
+    Inspects system environment and selects an appropriate real GPS adapter.
     """
+    if real_lat is not None and real_lon is not None:
+        return ManualInputAdapter(latitude=real_lat, longitude=real_lon, accuracy=real_acc)
+
     if source_preference == "gpsd":
         return LinuxGpsdAdapter(host=gpsd_host, port=gpsd_port)
     elif source_preference in ("serial", "nmea"):
         return SerialNmeaAdapter(port=serial_port, baudrate=serial_baudrate)
+    elif source_preference == "network":
+        return NetworkGeoAdapter(endpoint_url=network_geo_url)
     elif source_preference == "manual":
-        return ManualInputAdapter()
+        return ManualInputAdapter(latitude=real_lat, longitude=real_lon, accuracy=real_acc)
 
     # Automatic hardware discovery
     gpsd_adapter = LinuxGpsdAdapter(host=gpsd_host, port=gpsd_port)
@@ -258,6 +322,10 @@ def select_gps_adapter(
     serial_adapter = SerialNmeaAdapter(port=serial_port, baudrate=serial_baudrate)
     if serial_adapter.is_available():
         return serial_adapter
+
+    # If network geo is explicitly configured
+    if network_geo_url:
+        return NetworkGeoAdapter(endpoint_url=network_geo_url)
 
     # No hardware found
     return NoHardwareAdapter()

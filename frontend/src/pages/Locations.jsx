@@ -276,7 +276,10 @@ export default function Locations() {
 
             <div className="location-map real-location-map" style={{ height: "420px" }}>
               <RealMap
-                location={activeLocation}
+                location={{
+                  ...activeLocation,
+                  device_name: selectedDevice?.device_name || activeLocation.device_name || "Active Device",
+                }}
                 locations={locations}
                 recenterSignal={recenterSignal}
               />
@@ -293,7 +296,10 @@ export default function Locations() {
                   <Navigation size={16} />
                   <span>Latitude</span>
                 </div>
-                <strong>{Number(activeLocation.latitude).toFixed(6)}° N</strong>
+                <strong>
+                  {Math.abs(Number(activeLocation.latitude)).toFixed(6)}°{" "}
+                  {Number(activeLocation.latitude) >= 0 ? "N" : "S"}
+                </strong>
               </div>
 
               <div className="location-data-row">
@@ -301,7 +307,10 @@ export default function Locations() {
                   <Navigation size={16} />
                   <span>Longitude</span>
                 </div>
-                <strong>{Number(activeLocation.longitude).toFixed(6)}° E</strong>
+                <strong>
+                  {Math.abs(Number(activeLocation.longitude)).toFixed(6)}°{" "}
+                  {Number(activeLocation.longitude) >= 0 ? "E" : "W"}
+                </strong>
               </div>
 
               <div className="location-data-row">

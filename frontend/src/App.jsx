@@ -16,6 +16,9 @@ import Security from "./pages/Security";
 import Settings from "./pages/Settings";
 
 import Login from "./pages/Login";
+import Register from "./pages/Register";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import Devices from "./pages/Devices";
 import Locations from "./pages/Locations";
 import Activity from "./pages/Activity";
@@ -255,6 +258,21 @@ function App() {
           <Route
             path="/login"
             element={<Login />}
+          />
+
+          <Route
+            path="/register"
+            element={<Register />}
+          />
+
+          <Route
+            path="/forgot-password"
+            element={<ForgotPassword />}
+          />
+
+          <Route
+            path="/reset-password"
+            element={<ResetPassword />}
           />
 
           <Route

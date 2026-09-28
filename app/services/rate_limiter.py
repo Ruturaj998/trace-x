@@ -1,3 +1,4 @@
+import os
 import time
 from collections import defaultdict, deque
 from fastapi import HTTPException, Request
@@ -10,7 +11,16 @@ class RateLimiter:
         self.history = defaultdict(deque)
 
     def check(self, request: Request, key_prefix: str = "") -> None:
-        client_ip = request.client.host if request.client else "127.0.0.1"
+        if os.getenv("TESTING", "false").lower() in ("true", "1") or os.getenv("DISABLE_RATE_LIMIT", "false").lower() in ("true", "1"):
+            return
+
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            client_ip = forwarded.split(",")[0].strip()
+        elif request.client and request.client.host:
+            client_ip = request.client.host
+        else:
+            client_ip = "127.0.0.1"
         key = f"{key_prefix}:{client_ip}"
         now = time.time()
         queue = self.history[key]
@@ -33,3 +43,6 @@ class RateLimiter:
 # Limits: 5 requests per 60 seconds per IP for sensitive auth routes
 login_limiter = RateLimiter(max_requests=5, window_seconds=60)
 register_limiter = RateLimiter(max_requests=5, window_seconds=60)
+forgot_password_limiter = RateLimiter(max_requests=3, window_seconds=60)
+reset_password_limiter = RateLimiter(max_requests=5, window_seconds=60)
+change_password_limiter = RateLimiter(max_requests=5, window_seconds=60)

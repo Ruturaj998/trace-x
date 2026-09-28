@@ -25,6 +25,34 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        if not value or not value.strip():
+            raise ValueError("Password cannot be blank or whitespace only")
+        if len(value) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        return value
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        if not value or not value.strip():
+            raise ValueError("Password cannot be blank or whitespace only")
+        if len(value) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        return value
 
 class UserResponse(BaseModel):
     id: int

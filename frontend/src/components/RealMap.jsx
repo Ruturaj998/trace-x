@@ -92,9 +92,14 @@ function RealMapInner({ location, locations = [], recenterSignal }) {
     );
   }
 
-  // Safely extract valid historical breadcrumbs
+  // Safely extract valid historical breadcrumbs in strict chronological order for the trail
   const validHistory = filterValidLocations(locations);
-  const polylineCoords = validHistory.map((loc) => [loc.lat, loc.lng]);
+  const chronologicalHistory = [...validHistory].sort((a, b) => {
+    const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+    const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+    return timeA - timeB;
+  });
+  const polylineCoords = chronologicalHistory.map((loc) => [loc.lat, loc.lng]);
 
   const displayAccuracy =
     activeLocation.accuracy !== null &&

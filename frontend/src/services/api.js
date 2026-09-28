@@ -1,4 +1,9 @@
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+export const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL !== undefined
+    ? import.meta.env.VITE_API_BASE_URL
+    : import.meta.env.PROD
+      ? ""
+      : "http://127.0.0.1:8000";
 
 export const getToken = () => {
   return localStorage.getItem("tracex_token");
@@ -36,6 +41,79 @@ export const loginUser = async (email, password) => {
   }
 
   return data;
+};
+
+export const registerUser = async (name, email, password) => {
+  const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ name, email, password }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const message =
+      typeof data.detail === "string"
+        ? data.detail
+        : JSON.stringify(data.detail);
+    throw new Error(message || "Registration failed.");
+  }
+
+  return data;
+};
+
+export const forgotPassword = async (email) => {
+  const response = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ email }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const message =
+      typeof data.detail === "string"
+        ? data.detail
+        : JSON.stringify(data.detail);
+    throw new Error(message || "Request failed.");
+  }
+
+  return data;
+};
+
+export const resetPassword = async (token, new_password) => {
+  const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ token, new_password }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const message =
+      typeof data.detail === "string"
+        ? data.detail
+        : JSON.stringify(data.detail);
+    throw new Error(message || "Password reset failed.");
+  }
+
+  return data;
+};
+
+export const changePassword = async (current_password, new_password) => {
+  return apiRequest("/auth/change-password", {
+    method: "POST",
+    body: JSON.stringify({ current_password, new_password }),
+  });
 };
 
 export const apiRequest = async (endpoint, options = {}) => {

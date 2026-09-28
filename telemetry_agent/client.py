@@ -36,6 +36,10 @@ class TraceXClient:
         except urllib.error.HTTPError as e:
             error_body = e.read().decode("utf-8", errors="replace")
             raise RuntimeError(f"Authentication failed (HTTP {e.code}): {error_body}") from e
+        except urllib.error.URLError as e:
+            raise ConnectionError(f"Network error connecting to {url}: {e.reason}") from e
+        except TimeoutError as e:
+            raise TimeoutError(f"Authentication timed out connecting to {url}: {e}") from e
         except Exception as e:
             raise RuntimeError(f"Could not connect to TRACE-X API at {url}: {e}") from e
 
@@ -48,7 +52,7 @@ class TraceXClient:
     ) -> Dict[str, Any]:
         """Send a real GPS fix to POST /locations."""
         if not self.token:
-            raise ValueError("Authentication token is required to send telemetry.")
+            raise PermissionError("Authentication token is required to send telemetry (HTTP 401).")
 
         url = f"{self.base_url}/locations"
         body = {
@@ -77,19 +81,25 @@ class TraceXClient:
             error_body = e.read().decode("utf-8", errors="replace")
             if e.code == 401:
                 raise PermissionError(f"Unauthorized (HTTP 401). Invalid or expired token: {error_body}") from e
+            elif e.code == 403:
+                raise PermissionError(f"Forbidden (HTTP 403). Device access denied or not owned by caller: {error_body}") from e
             elif e.code == 404:
                 raise LookupError(f"Device not found or not owned by user (HTTP 404): {error_body}") from e
             elif e.code == 422:
                 raise ValueError(f"Validation error (HTTP 422). Invalid coordinates or schema: {error_body}") from e
             else:
                 raise RuntimeError(f"Location ingestion failed (HTTP {e.code}): {error_body}") from e
+        except urllib.error.URLError as e:
+            raise ConnectionError(f"Network error connecting to TRACE-X API at {url}: {e.reason}") from e
+        except TimeoutError as e:
+            raise TimeoutError(f"Request timed out connecting to TRACE-X API at {url}: {e}") from e
         except Exception as e:
-            raise RuntimeError(f"Network error sending telemetry to {url}: {e}") from e
+            raise RuntimeError(f"Error sending telemetry to {url}: {e}") from e
 
     def get_latest_location(self, device_id: int) -> Dict[str, Any]:
         """Fetch latest location fix from GET /devices/{device_id}/latest-location."""
         if not self.token:
-            raise ValueError("Authentication token is required.")
+            raise PermissionError("Authentication token is required (HTTP 401).")
 
         url = f"{self.base_url}/devices/{device_id}/latest-location"
         req = urllib.request.Request(
@@ -103,4 +113,14 @@ class TraceXClient:
                 return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             error_body = e.read().decode("utf-8", errors="replace")
+            if e.code == 401:
+                raise PermissionError(f"Unauthorized (HTTP 401): {error_body}") from e
+            elif e.code == 403:
+                raise PermissionError(f"Forbidden (HTTP 403): {error_body}") from e
+            elif e.code == 404:
+                raise LookupError(f"Device or location not found (HTTP 404): {error_body}") from e
             raise RuntimeError(f"Failed to fetch latest location (HTTP {e.code}): {error_body}") from e
+        except urllib.error.URLError as e:
+            raise ConnectionError(f"Network error connecting to {url}: {e.reason}") from e
+        except TimeoutError as e:
+            raise TimeoutError(f"Request timed out connecting to {url}: {e}") from e

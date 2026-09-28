@@ -10,6 +10,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import ChangePasswordModal from "../components/ChangePasswordModal";
 
 import {
   getCurrentUser,
@@ -30,6 +31,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
   const handleRefresh = async () => {
     try {
@@ -283,6 +285,14 @@ export default function Settings() {
                 User / Admin
               </strong>
             </div>
+
+            <button 
+              className="settings-refresh-button" 
+              style={{ marginTop: "1rem", width: "100%", justifyContent: "center" }}
+              onClick={() => setIsPasswordModalOpen(true)}
+            >
+              CHANGE PASSWORD
+            </button>
           </div>
         </div>
 
@@ -373,6 +383,11 @@ export default function Settings() {
         <LogOut size={17} />
         Sign out of TRACE-X
       </button>
+
+      <ChangePasswordModal 
+        isOpen={isPasswordModalOpen} 
+        onClose={() => setIsPasswordModalOpen(false)} 
+      />
     </section>
   );
 }
