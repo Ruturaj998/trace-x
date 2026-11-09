@@ -8,7 +8,6 @@ from starlette.testclient import TestClient
 from app.main import app
 from app.database.connection import SessionLocal
 from app.models.device import Device
-from app.models.location import Location
 from telemetry_agent.offline_queue import OfflineTelemetryQueue
 
 client = TestClient(app)

@@ -56,7 +56,7 @@ export default function ForgotPassword() {
         <p>
           Enter your email address to receive a password reset link.
         </p>
-        
+
         {success ? (
           <div style={{ textAlign: "center", marginTop: "1rem" }}>
             <p style={{ color: "var(--text-soft)" }}>
@@ -91,7 +91,7 @@ export default function ForgotPassword() {
             </button>
           </form>
         )}
-        
+
         {!success && (
           <div style={{ marginTop: "1rem", textAlign: "center" }}>
               <Link to="/login" style={{ color: "var(--accent)" }}>Return to Sign In</Link>

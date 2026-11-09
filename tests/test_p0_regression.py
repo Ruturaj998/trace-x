@@ -1,4 +1,3 @@
-import os
 import time
 import pytest
 from starlette.requests import Request
@@ -9,8 +8,6 @@ from app.services.rate_limiter import (
     RateLimiter,
     get_client_ip,
     parse_ip_address,
-    is_ip_in_networks,
-    get_trusted_proxies,
 )
 
 client = TestClient(app)

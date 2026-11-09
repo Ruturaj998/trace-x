@@ -293,8 +293,8 @@ export default function Settings() {
               </strong>
             </div>
 
-            <button 
-              className="settings-refresh-button" 
+            <button
+              className="settings-refresh-button"
               style={{ marginTop: "1rem", width: "100%", justifyContent: "center" }}
               onClick={() => setIsPasswordModalOpen(true)}
             >
@@ -391,9 +391,9 @@ export default function Settings() {
         Sign out of TRACE-X
       </button>
 
-      <ChangePasswordModal 
-        isOpen={isPasswordModalOpen} 
-        onClose={() => setIsPasswordModalOpen(false)} 
+      <ChangePasswordModal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
       />
     </section>
   );

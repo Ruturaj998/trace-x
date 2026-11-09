@@ -25,10 +25,10 @@ from app.services.email import EmailService
 from app.services.password_reset import generate_reset_token, hash_token
 from app.services.csrf import generate_csrf_token, CSRF_COOKIE_NAME
 from app.services.rate_limiter import (
-    login_limiter, 
-    register_limiter, 
-    forgot_password_limiter, 
-    reset_password_limiter, 
+    login_limiter,
+    register_limiter,
+    forgot_password_limiter,
+    reset_password_limiter,
     change_password_limiter
 )
 
@@ -186,11 +186,15 @@ def get_csrf_token(request: Request, response: Response):
 
 @router.get(
     "/me",
-    response_model=UserResponse
+    response_model=UserResponse,
+    deprecated=True,
+    summary="Get current user profile (Deprecated)",
+    description="Deprecated: Use /users/me for user profile retrieval.",
 )
 def get_current_user_info(
     current_user: User = Depends(get_current_user)
 ):
+    """Retrieve the currently authenticated user profile. Deprecated: Prefer /users/me."""
     return current_user
 
 
@@ -201,15 +205,15 @@ def forgot_password(
     db: Session = Depends(get_db)
 ):
     forgot_password_limiter.check(request, "forgot_password")
-    
+
     user = db.query(User).filter(User.email == payload.email).first()
     if user:
         # Generate token
         token = generate_reset_token()
         hashed = hash_token(token)
-        
+
         expires = datetime.now(timezone.utc) + timedelta(hours=1)
-        
+
         reset_token_entry = PasswordResetToken(
             token=hashed,
             user_id=user.id,
@@ -217,9 +221,9 @@ def forgot_password(
         )
         db.add(reset_token_entry)
         db.commit()
-        
+
         EmailService.send_password_reset_email(user.email, token)
-        
+
     return {"message": "If an account exists with that email, a password reset link has been sent."}
 
 
@@ -230,15 +234,15 @@ def reset_password(
     db: Session = Depends(get_db)
 ):
     reset_password_limiter.check(request, "reset_password")
-    
+
     hashed = hash_token(payload.token)
-    
+
     reset_entry = (
         db.query(PasswordResetToken)
         .filter(PasswordResetToken.token == hashed)
         .first()
     )
-    
+
     if not reset_entry or reset_entry.used:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
 
@@ -247,16 +251,16 @@ def reset_password(
         expires_at = expires_at.replace(tzinfo=timezone.utc)
     if expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
-        
+
     user = db.query(User).filter(User.id == reset_entry.user_id).first()
     if not user:
         raise HTTPException(status_code=400, detail="User not found")
-        
+
     user.password_hash = hash_password(payload.new_password)
     reset_entry.used = True
-    
+
     db.commit()
-    
+
     return {"message": "Password has been successfully reset."}
 
 
@@ -268,11 +272,11 @@ def change_password(
     current_user: User = Depends(get_current_user)
 ):
     change_password_limiter.check(request, "change_password")
-    
+
     if not current_user.password_hash or not verify_password(payload.current_password, current_user.password_hash):
         raise HTTPException(status_code=400, detail="Incorrect current password")
-        
+
     current_user.password_hash = hash_password(payload.new_password)
     db.commit()
-    
+
     return {"message": "Password updated successfully"}

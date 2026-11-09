@@ -10,7 +10,7 @@ Usage:
 import re
 import sys
 from pathlib import Path
-from typing import List, Tuple, Optional, Set
+from typing import List, Tuple, Optional
 from sqlalchemy import text
 from app.database.connection import engine
 

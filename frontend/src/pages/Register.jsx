@@ -111,7 +111,7 @@ export default function Register() {
             {loading ? "REGISTERING..." : "REGISTER"}
           </button>
         </form>
-        
+
         <div style={{ marginTop: "1rem", textAlign: "center" }}>
             <Link to="/login" style={{ color: "var(--accent)" }}>Already have an account? Sign In</Link>
         </div>

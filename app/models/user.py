@@ -1,8 +1,12 @@
+from typing import TYPE_CHECKING
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.base import Base
-from app.models.device import Device
+
+if TYPE_CHECKING:
+    from app.models.device import Device
+    from app.models.password_reset_token import PasswordResetToken
 
 
 class User(Base):

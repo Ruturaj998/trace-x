@@ -3,12 +3,8 @@ from unittest.mock import patch, MagicMock
 import urllib.error
 
 from telemetry_agent.client import TraceXClient
-from telemetry_agent.config import TelemetryConfig
 from telemetry_agent.gps_adapter import (
-    GPSFix,
     ManualInputAdapter,
-    LinuxGpsdAdapter,
-    SerialNmeaAdapter,
     NetworkGeoAdapter,
     NoHardwareAdapter,
     select_gps_adapter,

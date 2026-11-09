@@ -16,7 +16,6 @@ import os
 import socket
 from typing import Optional
 import urllib.request
-import urllib.error
 
 
 @dataclass

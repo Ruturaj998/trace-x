@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, field_validator
 
 
 class RegisterRequest(BaseModel):
@@ -56,9 +56,15 @@ class ChangePasswordRequest(BaseModel):
             raise ValueError("Password must be at least 8 characters long")
         return value
 
-class UserResponse(BaseModel):
-    id: int
-    name: str
-    email: str
 
-    model_config = ConfigDict(from_attributes=True)
+from app.schemas.user import UserResponse
+
+__all__ = [
+    "RegisterRequest",
+    "LoginRequest",
+    "TokenResponse",
+    "ForgotPasswordRequest",
+    "ResetPasswordRequest",
+    "ChangePasswordRequest",
+    "UserResponse",
+]

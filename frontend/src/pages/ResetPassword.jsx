@@ -58,7 +58,7 @@ export default function ResetPassword() {
         <span className="login-label">TRACE-X / SECURITY</span>
 
         <h1>Reset Password</h1>
-        
+
         {success ? (
           <div style={{ textAlign: "center", marginTop: "1rem" }}>
             <p style={{ color: "var(--text-soft)" }}>
@@ -73,7 +73,7 @@ export default function ResetPassword() {
             <p>
               Enter a new password for your account.
             </p>
-            
+
             <form onSubmit={handleSubmit}>
               <label htmlFor="password">New Password</label>
 
@@ -99,7 +99,7 @@ export default function ResetPassword() {
                 {loading ? "RESETTING..." : "RESET PASSWORD"}
               </button>
             </form>
-            
+
             <div style={{ marginTop: "1rem", textAlign: "center" }}>
                 <Link to="/login" style={{ color: "var(--accent)" }}>Return to Sign In</Link>
             </div>

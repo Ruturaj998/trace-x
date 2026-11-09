@@ -7,7 +7,7 @@ from app.main import app
 from app.database.connection import SessionLocal
 from app.models.user import User
 from app.models.password_reset_token import PasswordResetToken
-from app.services.auth import create_access_token, hash_password
+from app.services.auth import create_access_token
 from app.services.password_reset import generate_reset_token, hash_token
 
 client = TestClient(app)
@@ -201,7 +201,7 @@ def test_expired_or_invalid_jwt():
 
 def test_rate_limiter_logic():
     import os
-    from fastapi import HTTPException, Request
+    from fastapi import HTTPException
     from app.services.rate_limiter import RateLimiter
 
     limiter = RateLimiter(max_requests=2, window_seconds=60)

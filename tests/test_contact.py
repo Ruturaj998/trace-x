@@ -1,11 +1,9 @@
 import uuid
-import pytest
 from starlette.testclient import TestClient
 
 from app.main import app
 from app.database.connection import SessionLocal
 from app.models.contact_message import ContactMessage
-from app.services.rate_limiter import contact_limiter
 
 client = TestClient(app)
 

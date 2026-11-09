@@ -100,7 +100,7 @@ export default function Login() {
             {loading ? "AUTHENTICATING..." : "SIGN IN"}
           </button>
         </form>
-        
+
         <div style={{ marginTop: "1.5rem", display: "flex", justifyContent: "space-between", fontSize: "0.9rem" }}>
             <Link to="/forgot-password" style={{ color: "var(--text-soft)" }}>Forgot Password?</Link>
             <Link to="/register" style={{ color: "var(--accent)" }}>Create Account</Link>
