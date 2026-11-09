@@ -1,0 +1,9 @@
+# ==============================================================================
+# TRACE-X Development & Test Dependencies
+# ==============================================================================
+-r requirements.txt
+
+# Testing & Performance Benchmarking
+pytest==9.1.1
+anyio==4.15.1
+httpx==0.28.1

@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   BrowserRouter,
   Routes,
   Route,
   Navigate,
+  useLocation,
 } from "react-router-dom";
 
 import Sidebar from "./components/Sidebar";
@@ -23,6 +24,10 @@ import Devices from "./pages/Devices";
 import Locations from "./pages/Locations";
 import Activity from "./pages/Activity";
 import NotFound from "./pages/NotFound";
+import FAQ from "./pages/FAQ";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import Contact from "./pages/Contact";
+import ThankYou from "./pages/ThankYou";
 
 import {
   getDashboardSummary,
@@ -34,12 +39,29 @@ import {
 
 import { isValidLocation } from "./utils/coordinates";
 import { ToastProvider } from "./context/ToastContext";
+import { NavProvider } from "./context/NavContext";
+import { initGA, trackPageView } from "./utils/analytics";
+import PageMeta from "./components/PageMeta";
 import "./App.css";
-
 
 import DeviceDetailModal from "./components/DeviceDetailModal";
 import AddDeviceModal from "./components/AddDeviceModal";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import { Button } from "./components/common";
+
+function AnalyticsTracker() {
+  const location = useLocation();
+
+  useEffect(() => {
+    initGA();
+  }, []);
+
+  useEffect(() => {
+    trackPageView(location.pathname);
+  }, [location.pathname]);
+
+  return null;
+}
 
 function Dashboard() {
   const [summary, setSummary] = useState(null);
@@ -48,125 +70,189 @@ function Dashboard() {
   const [activity, setActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [lastSynced, setLastSynced] = useState(null);
   const [selectedDevice, setSelectedDevice] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  const fetchDashboard = async (isManual = false) => {
-    try {
-      if (isManual) setLoading(true);
+  const isMountedRef = useRef(true);
+  const requestIdRef = useRef(0);
+  const inFlightPromiseRef = useRef(null);
 
+  const performFetch = useCallback(async () => {
+    const currentRequestId = ++requestIdRef.current;
+
+    if (!inFlightPromiseRef.current) {
+      inFlightPromiseRef.current = Promise.all([
+        getDashboardSummary(),
+        getLatestLocation(),
+        getDashboardDevices(),
+        getRecentActivity(),
+      ]).finally(() => {
+        inFlightPromiseRef.current = null;
+      });
+    }
+
+    try {
       const [
         summaryData,
         locationData,
         devicesData,
         activityData,
-      ] = await Promise.all([
-        getDashboardSummary(),
-        getLatestLocation(),
-        getDashboardDevices(),
-        getRecentActivity(),
-      ]);
+      ] = await inFlightPromiseRef.current;
+
+      // Discard if component unmounted or a newer request was dispatched
+      if (!isMountedRef.current || currentRequestId !== requestIdRef.current) {
+        return;
+      }
 
       setSummary(summaryData);
       setLocation(isValidLocation(locationData) ? locationData : null);
       setDevices(devicesData);
       setActivity(activityData);
       setError(null);
+      setLastSynced(new Date());
     } catch (err) {
+      if (!isMountedRef.current || currentRequestId !== requestIdRef.current) {
+        return;
+      }
       console.error("Dashboard loading failed:", err);
       setError("Unable to connect to TRACE-X telemetry backend.");
     } finally {
-      setLoading(false);
+      if (isMountedRef.current && currentRequestId === requestIdRef.current) {
+        setLoading(false);
+      }
     }
-  };
+  }, []);
+
+  const handleManualRefresh = useCallback(() => {
+    setLoading(true);
+    performFetch();
+  }, [performFetch]);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const runFetch = () => {
-      Promise.all([
-        getDashboardSummary(),
-        getLatestLocation(),
-        getDashboardDevices(),
-        getRecentActivity(),
-      ])
-        .then(([summaryData, locationData, devicesData, activityData]) => {
-          if (isMounted) {
-            setSummary(summaryData);
-            setLocation(isValidLocation(locationData) ? locationData : null);
-            setDevices(devicesData);
-            setActivity(activityData);
-            setError(null);
-          }
-        })
-        .catch((err) => {
-          if (isMounted) {
-            console.error("Dashboard loading failed:", err);
-            setError("Unable to connect to TRACE-X telemetry backend.");
-          }
-        })
-        .finally(() => {
-          if (isMounted) {
-            setLoading(false);
-          }
-        });
-    };
+    isMountedRef.current = true;
 
     // Initial load
-    runFetch();
+    performFetch();
 
-    // Refresh dashboard every 10 seconds
-    const refreshInterval = setInterval(runFetch, 10000);
+    // Refresh dashboard every 10 seconds without stacking requests
+    const refreshInterval = setInterval(() => {
+      performFetch();
+    }, 10000);
 
-    // Cleanup interval when dashboard unmounts
+    // Cleanup interval and guard against state updates when dashboard unmounts
     return () => {
-      isMounted = false;
+      isMountedRef.current = false;
       clearInterval(refreshInterval);
     };
-  }, []);
+  }, [performFetch]);
+
+  const hasLostDevices = (summary?.lost_devices ?? 0) > 0;
+  const isConnecting = loading && !summary && !error;
+
+  const statusLabel = error
+    ? "TELEMETRY OFFLINE"
+    : isConnecting
+      ? "CONNECTING..."
+      : hasLostDevices
+        ? "SECURITY ALERT"
+        : "SYSTEM NOMINAL";
+
+  const statusDotClass = error
+    ? "danger"
+    : isConnecting
+      ? "connecting"
+      : hasLostDevices
+        ? "danger"
+        : "";
 
   return (
     <div className="app-shell">
+      <PageMeta
+        title="Device Security Command Center"
+        description="Monitor registered devices, geographic telemetry, and security events."
+        path="/"
+        noIndex={true}
+      />
       <Sidebar />
 
       <main className="main-area">
         <Topbar />
 
-        <section className="dashboard-content">
-          <div className="welcome-block">
-            <span className="section-label">
-              SYSTEM OVERVIEW
-            </span>
+        <section className="dashboard-content" aria-label="Command Center Dashboard">
+          <header className="dashboard-hud-header">
+            <div className="dashboard-title-group">
+              <span className="dashboard-eyebrow">
+                SYSTEM TELEMETRY OVERVIEW
+              </span>
 
-            <h1>Device Security Command Center</h1>
+              <h1>Device Security Command Center</h1>
 
-            <p>
-              Monitor your registered devices, locations, and
-              security activity.
-            </p>
-          </div>
+              <p>
+                Monitor registered hardware assets, real-time geographic telemetry fixes, and security audit transitions.
+              </p>
+            </div>
+
+            <div className="dashboard-header-actions">
+              <div
+                className="hud-status-chip"
+                role="status"
+                aria-live="polite"
+              >
+                <span
+                  className={`hud-pulse-dot ${statusDotClass}`}
+                  aria-hidden="true"
+                />
+                <span>{statusLabel}</span>
+                {lastSynced && (
+                  <>
+                    <span aria-hidden="true">•</span>
+                    <span className="hud-sync-time">
+                      SYNC: {lastSynced.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                    </span>
+                  </>
+                )}
+              </div>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleManualRefresh}
+                loading={loading}
+                title="Synchronize dashboard telemetry"
+                aria-label="Refresh telemetry data"
+                icon={<RefreshCw size={13} className={loading ? "spin" : ""} aria-hidden="true" />}
+              >
+                Refresh
+              </Button>
+            </div>
+          </header>
 
           {error && !loading && (
-            <div className="app-error-banner" role="alert" style={{ marginBottom: "16px" }}>
-              <AlertTriangle size={18} className="app-error-icon" />
-              <div className="app-error-text">
-                <strong>Backend Telemetry Offline</strong>
-                <span>{error}</span>
+            <div className="dashboard-error-banner" role="alert">
+              <div className="dashboard-error-details">
+                <AlertTriangle size={18} className="danger-text" aria-hidden="true" />
+                <div>
+                  <strong>Backend Telemetry Offline</strong>
+                  <span>{error}</span>
+                </div>
               </div>
-              <button
-                type="button"
-                className="app-error-retry"
-                onClick={() => fetchDashboard(true)}
+
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleManualRefresh}
+                icon={<RefreshCw size={13} aria-hidden="true" />}
               >
-                <RefreshCw size={14} /> Retry
-              </button>
+                Retry Connection
+              </Button>
             </div>
           )}
 
-          <div className="stats-grid">
+          <div className="stats-grid" role="region" aria-label="Summary Statistics">
             <StatCard
               type="total"
-              label="TOTAL DEVICES"
+              label="TOTAL ASSETS"
               value={summary?.total_devices ?? "--"}
               meta="Registered devices"
               loading={loading}
@@ -174,7 +260,7 @@ function Dashboard() {
 
             <StatCard
               type="active"
-              label="ACTIVE"
+              label="ACTIVE & TRACKED"
               value={summary?.active_devices ?? "--"}
               meta="Devices operational"
               loading={loading}
@@ -182,9 +268,17 @@ function Dashboard() {
 
             <StatCard
               type="lost"
-              label="LOST / ALERT"
+              label="LOST / ALERTS"
               value={summary?.lost_devices ?? "--"}
-              meta="Requires attention"
+              meta="Requires immediate attention"
+              loading={loading}
+            />
+
+            <StatCard
+              type="disabled"
+              label="DISABLED / STANDBY"
+              value={summary?.disabled_devices ?? "--"}
+              meta="Decommissioned hardware"
               loading={loading}
             />
           </div>
@@ -208,20 +302,22 @@ function Dashboard() {
       {selectedDevice && (
         <DeviceDetailModal
           device={selectedDevice}
+          isOpen={Boolean(selectedDevice)}
           onClose={() => setSelectedDevice(null)}
-          onStatusUpdated={() => fetchDashboard()}
-          onDeviceDeleted={() => fetchDashboard()}
+          onDeviceUpdated={performFetch}
+          onDeviceDeleted={performFetch}
         />
       )}
 
       <AddDeviceModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onDeviceAdded={() => fetchDashboard()}
+        onDeviceCreated={performFetch}
       />
     </div>
   );
 }
+
 
 
 function ProtectedRoute({ children }) {
@@ -252,8 +348,10 @@ function PageLayout({ children }) {
 function App() {
   return (
     <BrowserRouter>
+      <AnalyticsTracker />
       <ToastProvider>
-        <Routes>
+        <NavProvider>
+          <Routes>
 
           <Route
             path="/login"
@@ -273,6 +371,26 @@ function App() {
           <Route
             path="/reset-password"
             element={<ResetPassword />}
+          />
+
+          <Route
+            path="/faq"
+            element={<FAQ />}
+          />
+
+          <Route
+            path="/privacy"
+            element={<PrivacyPolicy />}
+          />
+
+          <Route
+            path="/contact"
+            element={<Contact />}
+          />
+
+          <Route
+            path="/contact/thank-you"
+            element={<ThankYou />}
           />
 
           <Route
@@ -344,11 +462,11 @@ function App() {
             element={<NotFound />}
           />
 
-        </Routes>
+          </Routes>
+        </NavProvider>
       </ToastProvider>
     </BrowserRouter>
   );
 }
-
 
 export default App;

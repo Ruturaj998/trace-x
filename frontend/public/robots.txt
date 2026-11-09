@@ -1,0 +1,46 @@
+# ==============================================================================
+# TRACE-X Production Robots Configuration
+# Note: robots.txt guides search engine crawlers and is NOT an authentication
+# or security mechanism. Protected endpoints enforce strict JWT token checks.
+# ==============================================================================
+
+User-agent: *
+
+# Allow Indexing of Public Informational and Onboarding Pages
+Allow: /login
+Allow: /register
+Allow: /faq
+Allow: /privacy
+Allow: /contact
+Allow: /forgot-password
+Allow: /favicon.ico
+Allow: /favicon.png
+Allow: /og-preview.png
+Allow: /og-preview.jpg
+Allow: /assets/
+
+# Disallow Crawling of Private Authenticated Console Routes
+Disallow: /devices
+Disallow: /locations
+Disallow: /activity
+Disallow: /security
+Disallow: /settings
+
+# Disallow Non-Canonical One-Time Action Routes
+Disallow: /reset-password
+Disallow: /contact/thank-you
+
+# Disallow Direct Backend API Endpoints
+Disallow: /auth/
+Disallow: /devices/
+Disallow: /locations/
+Disallow: /status-history/
+Disallow: /users/
+Disallow: /dashboard/
+Disallow: /health
+Disallow: /docs
+Disallow: /openapi.json
+Disallow: /redoc
+
+# Production Sitemap Location (Replace with registered domain in production)
+Sitemap: https://tracex.example.com/sitemap.xml

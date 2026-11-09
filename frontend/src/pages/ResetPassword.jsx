@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { resetPassword } from "../services/api";
 import { useToast } from "../context/useToast";
 import tracexLogo from "../assets/tracex-logo.png";
+import PageMeta from "../components/PageMeta";
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -40,10 +41,17 @@ export default function ResetPassword() {
 
   return (
     <div className="login-page">
+      <PageMeta
+        title="Reset Password"
+        description="Choose a new password for your TRACE-X account."
+        path="/reset-password"
+        noIndex={true}
+      />
+
       <div className="login-card">
         <img
           src={tracexLogo}
-          alt="TRACE-X logo"
+          alt="TRACE-X — Device Security"
           className="brand-logo login-logo"
         />
 
@@ -53,7 +61,7 @@ export default function ResetPassword() {
         
         {success ? (
           <div style={{ textAlign: "center", marginTop: "1rem" }}>
-            <p style={{ color: "var(--tx-text-secondary)" }}>
+            <p style={{ color: "var(--text-soft)" }}>
                 Your password has been changed successfully.
             </p>
             <button onClick={() => navigate("/login")} style={{ marginTop: "1rem" }}>
@@ -93,10 +101,18 @@ export default function ResetPassword() {
             </form>
             
             <div style={{ marginTop: "1rem", textAlign: "center" }}>
-                <Link to="/login" style={{ color: "var(--tx-accent-primary)" }}>Return to Sign In</Link>
+                <Link to="/login" style={{ color: "var(--accent)" }}>Return to Sign In</Link>
             </div>
           </>
         )}
+
+        <div style={{ marginTop: "1.4rem", paddingTop: "1rem", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "center", gap: "16px", fontSize: "0.8rem" }}>
+            <Link to="/faq" style={{ color: "var(--text-muted)", textDecoration: "none" }}>FAQ</Link>
+            <span style={{ color: "var(--border)" }}>•</span>
+            <Link to="/contact" style={{ color: "var(--text-muted)", textDecoration: "none" }}>Support</Link>
+            <span style={{ color: "var(--border)" }}>•</span>
+            <Link to="/privacy" style={{ color: "var(--text-muted)", textDecoration: "none" }}>Privacy</Link>
+        </div>
       </div>
     </div>
   );

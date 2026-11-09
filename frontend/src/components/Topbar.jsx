@@ -1,10 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import {
   Bell,
   Wifi,
   Smartphone,
   Activity,
   ShieldCheck,
+  Menu,
+  X,
+  User,
 } from "lucide-react";
 
 import {
@@ -12,141 +16,267 @@ import {
   getRecentActivity,
   getCurrentUser,
 } from "../services/api";
-import tracexLogo from "../assets/tracex-logo.png";
+import { useNav } from "../context/useNav";
+import { StatusBadge } from "./common/StatusBadge";
+import { topbarDataCache, CACHE_TTL_MS } from "../utils/cache";
+
+// Route-specific metadata mapping
+const routeMeta = {
+  "/": {
+    eyebrow: "TRACE-X / COMMAND",
+    title: "Command Center",
+  },
+  "/devices": {
+    eyebrow: "TRACE-X / HARDWARE",
+    title: "Registered Devices",
+  },
+  "/locations": {
+    eyebrow: "TRACE-X / TELEMETRY",
+    title: "Geographic Tracking",
+  },
+  "/activity": {
+    eyebrow: "TRACE-X / AUDIT",
+    title: "Activity & Audit Log",
+  },
+  "/security": {
+    eyebrow: "TRACE-X / INCIDENTS",
+    title: "Security & Threat Mitigation",
+  },
+  "/settings": {
+    eyebrow: "TRACE-X / CONFIGURATION",
+    title: "Settings & Preferences",
+  },
+};
 
 export default function Topbar() {
-  const [showSystem, setShowSystem] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
+  const location = useLocation();
+  const { isMobileNavOpen, toggleMobileNav } = useNav();
 
-  const [devices, setDevices] = useState([]);
-  const [activity, setActivity] = useState([]);
-  const [user, setUser] = useState(null);
+  const [activePopover, setActivePopover] = useState(null); // 'system' | 'notifications' | 'profile' | null
+  const [devices, setDevices] = useState(() => {
+    return topbarDataCache.devices !== null &&
+      Date.now() - topbarDataCache.timestamp < CACHE_TTL_MS
+      ? topbarDataCache.devices
+      : [];
+  });
+  const [activity, setActivity] = useState(() => {
+    return topbarDataCache.devices !== null &&
+      Date.now() - topbarDataCache.timestamp < CACHE_TTL_MS
+      ? topbarDataCache.activity
+      : [];
+  });
+  const [user, setUser] = useState(() => {
+    return topbarDataCache.devices !== null &&
+      Date.now() - topbarDataCache.timestamp < CACHE_TTL_MS
+      ? topbarDataCache.user
+      : null;
+  });
+  const [telemetryError, setTelemetryError] = useState(false);
 
+  const popoverContainerRef = useRef(null);
+
+  // Load telemetry & user data with in-flight deduplication and TTL caching
   useEffect(() => {
-    const loadTopbarData = async () => {
+    let isMounted = true;
+
+    const fetchTopbarData = async () => {
+      const now = Date.now();
+      const isCacheFresh =
+        topbarDataCache.devices !== null &&
+        now - topbarDataCache.timestamp < CACHE_TTL_MS;
+
+      if (isCacheFresh) {
+        if (isMounted) {
+          setDevices(topbarDataCache.devices);
+          setActivity(topbarDataCache.activity);
+          setUser(topbarDataCache.user);
+          setTelemetryError(false);
+        }
+        return;
+      }
+
       try {
-        const [devicesData, activityData, userData] =
-          await Promise.all([
+        if (!topbarDataCache.inFlight) {
+          topbarDataCache.inFlight = Promise.all([
             getDashboardDevices(),
             getRecentActivity(),
             getCurrentUser(),
           ]);
+        }
 
-        setDevices(devicesData);
-        setActivity(activityData);
-        setUser(userData);
+        const [devicesData, activityData, userData] =
+          await topbarDataCache.inFlight;
+
+        topbarDataCache.devices = devicesData;
+        topbarDataCache.activity = activityData;
+        topbarDataCache.user = userData;
+        topbarDataCache.timestamp = Date.now();
+
+        if (isMounted) {
+          setDevices(devicesData);
+          setActivity(activityData);
+          setUser(userData);
+          setTelemetryError(false);
+        }
       } catch (error) {
         console.error("Topbar data loading failed:", error);
+        if (isMounted) {
+          setTelemetryError(true);
+          // If cache was expired, clear stale data so it cannot be presented as verified telemetry
+          if (Date.now() - topbarDataCache.timestamp >= CACHE_TTL_MS) {
+            topbarDataCache.devices = null;
+            topbarDataCache.activity = null;
+            topbarDataCache.user = null;
+            setDevices([]);
+            setActivity([]);
+            setUser(null);
+          }
+        }
+      } finally {
+        topbarDataCache.inFlight = null;
       }
     };
 
-    loadTopbarData();
+    fetchTopbarData();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const closeAll = () => {
-    setShowSystem(false);
-    setShowNotifications(false);
-    setShowProfile(false);
+  const closeAll = useCallback(() => {
+    setActivePopover(null);
+  }, []);
+
+  const togglePopover = (popoverName) => {
+    setActivePopover((current) => (current === popoverName ? null : popoverName));
   };
 
-  const toggleSystem = () => {
-    setShowNotifications(false);
-    setShowProfile(false);
-    setShowSystem((value) => !value);
-  };
+  // Keyboard navigation and outside-click dismissal for popovers
+  useEffect(() => {
+    if (!activePopover) return;
 
-  const toggleNotifications = () => {
-    setShowSystem(false);
-    setShowProfile(false);
-    setShowNotifications((value) => !value);
-  };
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeAll();
+      }
+    };
 
-  const toggleProfile = () => {
-    setShowSystem(false);
-    setShowNotifications(false);
-    setShowProfile((value) => !value);
-  };
+    const handleClickOutside = (e) => {
+      if (
+        popoverContainerRef.current &&
+        !popoverContainerRef.current.contains(e.target)
+      ) {
+        closeAll();
+      }
+    };
 
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [activePopover, closeAll]);
+
+  // Operational device telemetry indicator
   const operational =
+    !telemetryError &&
     devices.length > 0 &&
     devices.some((device) => device.status !== "disabled");
 
-  const userName = user?.name || "User";
+  const userName = user?.name || "Administrator";
   const userInitial = userName.charAt(0).toUpperCase();
 
+  const currentMeta = routeMeta[location.pathname] || {
+    eyebrow: "TRACE-X / CONSOLE",
+    title: "Command Center",
+  };
+
   return (
-    <header className="topbar">
+    <header className="topbar" role="banner">
       <div className="topbar-left">
-        <img
-          src={tracexLogo}
-          alt="TRACE-X"
-          className="brand-logo topbar-mobile-logo"
-        />
+        {/* Mobile Navigation Drawer Toggle */}
+        <button
+          type="button"
+          className="mobile-nav-toggle"
+          onClick={toggleMobileNav}
+          aria-label={isMobileNavOpen ? "Close navigation menu" : "Open navigation menu"}
+          aria-expanded={isMobileNavOpen}
+          aria-controls="app-sidebar"
+        >
+          {isMobileNavOpen ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
+        </button>
+
+        {/* Dynamic Context Breadcrumb */}
         <div className="page-heading">
-          <span className="eyebrow">TRACE-X / SYSTEM</span>
-          <h2>Command Center</h2>
+          <span className="eyebrow">{currentMeta.eyebrow}</span>
+          <h2>{currentMeta.title}</h2>
         </div>
       </div>
 
-      <div className="topbar-right">
-
-        {/* SYSTEM STATUS */}
+      <div className="topbar-right" ref={popoverContainerRef}>
+        {/* 1. SYSTEM STATUS POPOVER */}
         <div className="topbar-popup-wrapper">
           <button
+            type="button"
             className="system-status system-status-button"
-            onClick={toggleSystem}
+            onClick={() => togglePopover("system")}
+            aria-label={`System telemetry status: ${telemetryError ? "Offline" : operational ? "Operational" : "Offline"}`}
+            aria-haspopup="dialog"
+            aria-expanded={activePopover === "system"}
           >
             <span
-              className={`status-dot ${
-                operational ? "online" : "offline"
-              }`}
+              className={`status-dot ${telemetryError ? "offline" : operational ? "online" : "offline"}`}
+              aria-hidden="true"
             />
-
-            <Wifi size={15} />
-
-            <span>
-              {operational ? "Operational" : "Offline"}
-            </span>
+            <Wifi size={14} aria-hidden="true" />
+            <span>{telemetryError ? "Offline" : operational ? "Operational" : "Offline"}</span>
           </button>
 
-          {showSystem && (
-            <div className="topbar-popup system-popup">
+          {activePopover === "system" && (
+            <div
+              className="topbar-popup system-popup"
+              role="dialog"
+              aria-label="System Telemetry Status"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="popup-header">
                 <div>
-                  <span className="popup-eyebrow">
-                    SYSTEM STATUS
-                  </span>
-
+                  <span className="popup-eyebrow">TELEMETRY STATUS</span>
                   <h3>Device Operations</h3>
                 </div>
-
                 <button
+                  type="button"
                   className="popup-close"
                   onClick={closeAll}
+                  aria-label="Close telemetry panel"
                 >
-                  ×
+                  <X size={16} aria-hidden="true" />
                 </button>
               </div>
 
               <div className="popup-status-row">
                 <span
-                  className={`popup-status-dot ${
-                    operational ? "online" : "offline"
-                  }`}
+                  className={`popup-status-dot ${telemetryError ? "offline" : operational ? "online" : "offline"}`}
+                  aria-hidden="true"
                 />
-
                 <div>
                   <strong>
-                    {operational
-                      ? "Device operational"
-                      : "System offline"}
+                    {telemetryError
+                      ? "Telemetry Offline"
+                      : operational
+                        ? "Hardware Telemetry Active"
+                        : "Telemetry Standby"}
                   </strong>
-
                   <span>
-                    {operational
-                      ? "TRACE-X is receiving device data."
-                      : "No operational device detected."}
+                    {telemetryError
+                      ? "Unable to synchronize with TRACE-X telemetry service."
+                      : operational
+                        ? "TRACE-X is receiving nominal device telemetry packets."
+                        : "No active devices transmitting telemetry."}
                   </span>
                 </div>
               </div>
@@ -154,32 +284,18 @@ export default function Topbar() {
               <div className="popup-divider" />
 
               {devices.length === 0 ? (
-                <div className="popup-empty">
-                  NO DEVICE DATA
-                </div>
+                <div className="popup-empty">NO REGISTERED HARDWARE</div>
               ) : (
                 devices.map((device) => (
-                  <div
-                    className="popup-device"
-                    key={device.id}
-                  >
-                    <div className="popup-device-icon">
-                      <Smartphone size={15} />
+                  <div className="popup-device" key={device.id}>
+                    <div className="popup-device-icon" aria-hidden="true">
+                      <Smartphone size={14} />
                     </div>
-
                     <div>
                       <strong>{device.device_name}</strong>
-
-                      <span>
-                        {device.device_identifier}
-                      </span>
+                      <span>{device.device_identifier}</span>
                     </div>
-
-                    <span
-                      className={`popup-device-status ${device.status}`}
-                    >
-                      {device.status?.toUpperCase()}
-                    </span>
+                    <StatusBadge status={device.status} size="sm" />
                   </div>
                 ))
               )}
@@ -187,68 +303,59 @@ export default function Topbar() {
           )}
         </div>
 
-        {/* NOTIFICATIONS */}
+        {/* 2. NOTIFICATIONS POPOVER */}
         <div className="topbar-popup-wrapper">
           <button
+            type="button"
             className="icon-button notification"
-            aria-label="Notifications"
-            onClick={toggleNotifications}
+            aria-label="Security notifications"
+            onClick={() => togglePopover("notifications")}
+            aria-haspopup="dialog"
+            aria-expanded={activePopover === "notifications"}
           >
-            <Bell size={18} />
-
-            {activity.length > 0 && (
-              <span className="notification-dot" />
-            )}
+            <Bell size={18} aria-hidden="true" />
+            {activity.length > 0 && <span className="notification-dot" aria-hidden="true" />}
           </button>
 
-          {showNotifications && (
-            <div className="topbar-popup notification-popup">
+          {activePopover === "notifications" && (
+            <div
+              className="topbar-popup notification-popup"
+              role="dialog"
+              aria-label="Security Incident Notifications"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="popup-header">
                 <div>
-                  <span className="popup-eyebrow">
-                    SECURITY LOG
-                  </span>
-
+                  <span className="popup-eyebrow">SECURITY AUDIT LOG</span>
                   <h3>Notifications</h3>
                 </div>
-
                 <button
+                  type="button"
                   className="popup-close"
                   onClick={closeAll}
+                  aria-label="Close notification panel"
                 >
-                  ×
+                  <X size={16} aria-hidden="true" />
                 </button>
               </div>
 
               {activity.length === 0 ? (
-                <div className="popup-empty">
-                  NO NEW NOTIFICATIONS
-                </div>
+                <div className="popup-empty">NO RECENT NOTIFICATIONS</div>
               ) : (
                 <div className="notification-list">
-                  {activity.map((item) => (
-                    <div
-                      className="notification-item"
-                      key={item.id}
-                    >
-                      <div className="notification-icon">
-                        <Activity size={14} />
+                  {activity.slice(0, 6).map((item) => (
+                    <div className="notification-item" key={item.id}>
+                      <div className="notification-icon" aria-hidden="true">
+                        <Activity size={13} />
                       </div>
-
                       <div className="notification-content">
-                        <strong>
-                          Device status changed
-                        </strong>
-
+                        <strong>Device status transition</strong>
                         <span>
                           {item.old_status} → {item.new_status}
                         </span>
-
                         <small>
                           {item.changed_at
-                            ? new Date(
-                                item.changed_at
-                              ).toLocaleString()
+                            ? new Date(item.changed_at).toLocaleString()
                             : "--"}
                         </small>
                       </div>
@@ -260,49 +367,54 @@ export default function Topbar() {
           )}
         </div>
 
-        {/* PROFILE */}
+        {/* 3. USER PROFILE POPOVER */}
         <div className="topbar-popup-wrapper">
           <button
+            type="button"
             className="profile profile-button"
-            onClick={toggleProfile}
+            onClick={() => togglePopover("profile")}
+            aria-label="Toggle user account profile menu"
+            aria-haspopup="dialog"
+            aria-expanded={activePopover === "profile"}
           >
             <div className="profile-info">
               <strong>{userName}</strong>
-              <span>Administrator</span>
+              <span>Security Officer</span>
             </div>
-
-            <div className="profile-avatar">
+            <div className="profile-avatar" aria-hidden="true">
               {userInitial}
             </div>
           </button>
 
-          {showProfile && (
-            <div className="topbar-popup profile-popup">
+          {activePopover === "profile" && (
+            <div
+              className="topbar-popup profile-popup"
+              role="dialog"
+              aria-label="User Account Summary"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="popup-header">
                 <div>
-                  <span className="popup-eyebrow">
-                    ACCOUNT
-                  </span>
-
-                  <h3>User Profile</h3>
+                  <span className="popup-eyebrow">OPERATOR PROFILE</span>
+                  <h3>Account Credentials</h3>
                 </div>
-
                 <button
+                  type="button"
                   className="popup-close"
                   onClick={closeAll}
+                  aria-label="Close profile panel"
                 >
-                  ×
+                  <X size={16} aria-hidden="true" />
                 </button>
               </div>
 
               <div className="profile-popup-user">
-                <div className="profile-popup-avatar">
+                <div className="profile-popup-avatar" aria-hidden="true">
                   {userInitial}
                 </div>
-
                 <div>
                   <strong>{userName}</strong>
-                  <span>Administrator</span>
+                  <span>Operator #{user?.id ?? "--"}</span>
                 </div>
               </div>
 
@@ -310,33 +422,30 @@ export default function Topbar() {
 
               <div className="profile-data-row">
                 <div>
-                  <ShieldCheck size={14} />
-                  <span>User ID</span>
+                  <ShieldCheck size={14} aria-hidden="true" />
+                  <span>Account ID</span>
                 </div>
-
-                <strong>{user?.id ?? "--"}</strong>
+                <strong>User #{user?.id ?? "--"}</strong>
               </div>
 
               <div className="profile-data-row">
                 <div>
+                  <User size={14} aria-hidden="true" />
                   <span>Email</span>
                 </div>
-
                 <strong>{user?.email || "--"}</strong>
               </div>
 
               <div className="profile-data-row">
                 <div>
-                  <Smartphone size={14} />
-                  <span>Devices</span>
+                  <Smartphone size={14} aria-hidden="true" />
+                  <span>Monitored Assets</span>
                 </div>
-
                 <strong>{devices.length}</strong>
               </div>
             </div>
           )}
         </div>
-
       </div>
     </header>
   );

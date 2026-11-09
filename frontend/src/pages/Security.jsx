@@ -17,6 +17,7 @@ import {
   getToken,
 } from "../services/api";
 import { useToast } from "../context/useToast";
+import PageMeta from "../components/PageMeta";
 
 export default function Security() {
   const toast = useToast();
@@ -158,6 +159,12 @@ export default function Security() {
 
   return (
     <section className="page-content">
+      <PageMeta
+        title="System Security Controls"
+        description="Monitor system security state, encryption protocols, and verified protections."
+        path="/security"
+        noIndex={true}
+      />
       <div className="welcome-block security-page-heading">
         <div>
           <span className="section-label">

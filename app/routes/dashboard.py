@@ -20,44 +20,29 @@ def get_dashboard_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    total_devices = (
-        db.query(func.count(Device.id))
+    devices = (
+        db.query(Device)
         .filter(Device.user_id == current_user.id)
-        .scalar()
+        .all()
     )
 
-    active_devices = (
-        db.query(func.count(Device.id))
-        .filter(
-            Device.user_id == current_user.id,
-            Device.status == "active"
-        )
-        .scalar()
-    )
+    total_devices = len(devices)
+    active_devices = sum(1 for d in devices if d.status == "active")
+    lost_devices = sum(1 for d in devices if d.status == "lost")
+    disabled_devices = sum(1 for d in devices if d.status == "disabled")
 
-    lost_devices = (
-        db.query(func.count(Device.id))
-        .filter(
-            Device.user_id == current_user.id,
-            Device.status == "lost"
-        )
-        .scalar()
-    )
-
-    disabled_devices = (
-        db.query(func.count(Device.id))
-        .filter(
-            Device.user_id == current_user.id,
-            Device.status == "disabled"
-        )
-        .scalar()
-    )
+    online_devices = sum(1 for d in devices if d.connectivity_status == "ONLINE")
+    offline_devices = sum(1 for d in devices if d.connectivity_status == "OFFLINE")
+    never_connected_devices = sum(1 for d in devices if d.connectivity_status == "NEVER_CONNECTED")
 
     return {
         "total_devices": total_devices,
         "active_devices": active_devices,
         "lost_devices": lost_devices,
-        "disabled_devices": disabled_devices
+        "disabled_devices": disabled_devices,
+        "online_devices": online_devices,
+        "offline_devices": offline_devices,
+        "never_connected_devices": never_connected_devices,
     }
 @router.get("/latest-location")
 def get_dashboard_latest_location(
@@ -139,7 +124,11 @@ def get_dashboard_devices(
             "id": device.id,
             "device_name": device.device_name,
             "device_identifier": device.device_identifier,
-            "status": device.status
+            "status": device.status,
+            "connectivity_status": device.connectivity_status,
+            "last_seen": device.last_seen,
+            "has_token": device.has_token,
+            "token_prefix": device.token_prefix,
         }
         for device in devices
     ]

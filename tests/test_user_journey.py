@@ -187,7 +187,9 @@ def test_full_trace_x_user_journey():
     assert recent_activity_resp.status_code == 200
     assert any(a["device_id"] == device_id and a["new_status"] == "lost" for a in recent_activity_resp.json())
 
-    # 12. LOGOUT (Simulate client-side token discard)
+    # 12. LOGOUT (Invoke server logout to clear HttpOnly session cookies)
+    logout_resp = client.post("/auth/logout")
+    assert logout_resp.status_code == 200
     headers_logged_out = {}
     unauth_resp = client.get("/auth/me", headers=headers_logged_out)
     assert unauth_resp.status_code == 401, "Unauthenticated request after logout must be rejected with 401"

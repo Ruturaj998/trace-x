@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   X,
   MapPin,
@@ -8,7 +8,9 @@ import {
   AlertTriangle,
   Ban,
   Trash2,
-  Loader2,
+  Key,
+  Copy,
+  Check,
 } from "lucide-react";
 import {
   getDeviceLatestLocation,
@@ -16,9 +18,14 @@ import {
   getDeviceLocations,
   updateDeviceStatus,
   deleteDevice,
+  generateDeviceToken,
+  revokeDeviceToken,
 } from "../services/api";
 import { useToast } from "../context/useToast";
 import { isValidLocation } from "../utils/coordinates";
+import { ConfirmDialog } from "./common/ConfirmDialog";
+import { Button } from "./common/Button";
+import { StatusBadge } from "./common/StatusBadge";
 
 export default function DeviceDetailModal({
   device,
@@ -33,6 +40,12 @@ export default function DeviceDetailModal({
   const [loadingDetails, setLoadingDetails] = useState(true);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const [generatedToken, setGeneratedToken] = useState(null);
+  const [tokenCopied, setTokenCopied] = useState(false);
+  const [managingToken, setManagingToken] = useState(false);
+
   const toast = useToast();
 
   useEffect(() => {
@@ -81,15 +94,22 @@ export default function DeviceDetailModal({
     };
   }, [isOpen, device]);
 
+  const handleClose = useCallback(() => {
+    setGeneratedToken(null);
+    setTokenCopied(false);
+    onClose();
+  }, [onClose]);
+
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === "Escape" && isOpen && !deleting && !updatingStatus) {
-        onClose();
+      if (e.key === "Escape" && isOpen && !deleting && !updatingStatus && !showDeleteConfirm) {
+        handleClose();
       }
     };
+
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, deleting, updatingStatus, onClose]);
+  }, [isOpen, deleting, updatingStatus, showDeleteConfirm, handleClose]);
 
   if (!isOpen || !device) return null;
 
@@ -119,16 +139,54 @@ export default function DeviceDetailModal({
     }
   };
 
-  const handleDelete = async () => {
-    const confirmed = window.confirm(
-      `Permanently delete "${device.device_name}" and its associated location records? This action cannot be undone.`
-    );
-    if (!confirmed) return;
+  const handleGenerateToken = async () => {
+    try {
+      setManagingToken(true);
+      const res = await generateDeviceToken(device.id);
+      setGeneratedToken(res.device_token);
+      setTokenCopied(false);
+      toast.success("Device credential generated. Copy it now.");
+      if (onDeviceUpdated) {
+        onDeviceUpdated({ ...device, has_token: true, token_prefix: res.token_prefix });
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to generate device credential.");
+    } finally {
+      setManagingToken(false);
+    }
+  };
 
+  const handleRevokeToken = async () => {
+    try {
+      setManagingToken(true);
+      await revokeDeviceToken(device.id);
+      setGeneratedToken(null);
+      toast.success("Device credential revoked.");
+      if (onDeviceUpdated) {
+        onDeviceUpdated({ ...device, has_token: false, token_prefix: null });
+      }
+    } catch (err) {
+      toast.error(err.message || "Failed to revoke device credential.");
+    } finally {
+      setManagingToken(false);
+    }
+  };
+
+  const handleCopyToken = () => {
+    if (generatedToken) {
+      navigator.clipboard.writeText(generatedToken);
+      setTokenCopied(true);
+      toast.success("Device token copied to clipboard!");
+      setTimeout(() => setTokenCopied(false), 3000);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
     try {
       setDeleting(true);
       await deleteDevice(device.id);
       toast.success(`Device "${device.device_name}" deleted successfully.`);
+      setShowDeleteConfirm(false);
       if (onDeviceDeleted) {
         onDeviceDeleted(device.id);
       }
@@ -143,7 +201,7 @@ export default function DeviceDetailModal({
   return (
     <div
       className="modal-overlay"
-      onClick={() => !deleting && !updatingStatus && onClose()}
+      onClick={() => !deleting && !updatingStatus && handleClose()}
       role="dialog"
       aria-modal="true"
       aria-labelledby="device-detail-title"
@@ -156,7 +214,7 @@ export default function DeviceDetailModal({
           </div>
           <button
             className="modal-close"
-            onClick={onClose}
+            onClick={handleClose}
             disabled={deleting || updatingStatus}
             aria-label="Close device details"
           >
@@ -174,16 +232,24 @@ export default function DeviceDetailModal({
 
             <div className="device-detail-metric">
               <span>SECURITY STATUS</span>
-              <strong
-                className={
-                  device.status === "active"
-                    ? "security-good"
-                    : device.status === "lost"
-                      ? "danger-text"
-                      : "muted-text"
-                }
-              >
-                {device.status?.toUpperCase()}
+              <div style={{ marginTop: "4px" }}>
+                <StatusBadge status={device.status} />
+              </div>
+            </div>
+
+            <div className="device-detail-metric">
+              <span>CONNECTIVITY</span>
+              <div style={{ marginTop: "4px" }}>
+                <StatusBadge status={device.connectivity_status || "never_connected"} />
+              </div>
+            </div>
+
+            <div className="device-detail-metric">
+              <span>LAST SEEN</span>
+              <strong style={{ fontSize: "11px" }}>
+                {device.last_seen
+                  ? new Date(device.last_seen).toLocaleString()
+                  : "Never"}
               </strong>
             </div>
 
@@ -255,6 +321,129 @@ export default function DeviceDetailModal({
                 No GPS location fixes have been transmitted by this device yet.
               </div>
             )}
+          </div>
+
+          {/* EDGE TELEMETRY CREDENTIALS */}
+          <div className="device-detail-history">
+            <h3>EDGE TELEMETRY CREDENTIALS</h3>
+            <div
+              style={{
+                marginTop: "8px",
+                padding: "12px",
+                background: "rgba(255,255,255,0.02)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                borderRadius: "6px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  fontSize: "12px",
+                }}
+              >
+                <div>
+                  <span style={{ color: "var(--text-muted)", fontSize: "11px" }}>CREDENTIAL STATUS</span>
+                  <div style={{ marginTop: "2px", fontWeight: "600" }}>
+                    {device.has_token ? (
+                      <span style={{ color: "var(--color-accent-lime, #d8ff3e)" }}>
+                        Active (Key prefix: {device.token_prefix}...)
+                      </span>
+                    ) : (
+                      <span style={{ color: "var(--text-muted)" }}>No credential configured</span>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleGenerateToken}
+                    disabled={managingToken}
+                    icon={<Key size={13} />}
+                  >
+                    {device.has_token ? "Rotate Key" : "Generate Key"}
+                  </Button>
+
+                  {device.has_token && (
+                    <Button
+                      type="button"
+                      variant="danger"
+                      size="sm"
+                      onClick={handleRevokeToken}
+                      disabled={managingToken}
+                    >
+                      Revoke
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {generatedToken && (
+                <div
+                  style={{
+                    marginTop: "12px",
+                    padding: "10px",
+                    background: "rgba(216, 255, 62, 0.05)",
+                    border: "1px solid rgba(216, 255, 62, 0.3)",
+                    borderRadius: "4px",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        color: "var(--color-accent-lime, #d8ff3e)",
+                        fontWeight: "600",
+                      }}
+                    >
+                      NEW DEVICE TOKEN (STORE SECURELY — NOT SHOWN AGAIN):
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleCopyToken}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: tokenCopied ? "var(--color-accent-lime, #d8ff3e)" : "var(--text-main)",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        fontSize: "11px",
+                      }}
+                    >
+                      {tokenCopied ? <Check size={12} /> : <Copy size={12} />}
+                      {tokenCopied ? "Copied" : "Copy"}
+                    </button>
+                  </div>
+                  <code
+                    style={{
+                      display: "block",
+                      wordBreak: "break-all",
+                      fontSize: "11px",
+                      fontFamily: "var(--mono)",
+                      color: "#fff",
+                      background: "rgba(0,0,0,0.4)",
+                      padding: "6px 8px",
+                      borderRadius: "4px",
+                    }}
+                  >
+                    {generatedToken}
+                  </code>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* STATUS CONTROLS */}
@@ -333,35 +522,38 @@ export default function DeviceDetailModal({
         </div>
 
         <div className="modal-footer" style={{ justifyContent: "space-between" }}>
-          <button
+          <Button
             type="button"
-            className="btn-danger"
-            onClick={handleDelete}
+            variant="danger"
+            onClick={() => setShowDeleteConfirm(true)}
             disabled={deleting || updatingStatus}
+            icon={<Trash2 size={14} />}
           >
-            {deleting ? (
-              <>
-                <Loader2 size={14} className="spin" />
-                Deleting...
-              </>
-            ) : (
-              <>
-                <Trash2 size={14} />
-                Delete Device
-              </>
-            )}
-          </button>
+            Delete Device
+          </Button>
 
-          <button
+          <Button
             type="button"
-            className="btn-secondary"
+            variant="secondary"
             onClick={onClose}
             disabled={deleting || updatingStatus}
           >
             Close
-          </button>
+          </Button>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => !deleting && setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Device"
+        description={`Permanently delete "${device.device_name}" and its associated location records? This action cannot be undone.`}
+        confirmLabel="Delete Device"
+        cancelLabel="Cancel"
+        destructive
+        pending={deleting}
+      />
     </div>
   );
 }

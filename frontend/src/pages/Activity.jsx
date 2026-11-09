@@ -9,6 +9,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { getRecentActivity } from "../services/api";
+import PageMeta from "../components/PageMeta";
 
 export default function Activity() {
   const [activity, setActivity] = useState([]);
@@ -71,6 +72,12 @@ export default function Activity() {
 
   return (
     <section className="page-content">
+      <PageMeta
+        title="Security Activity Log"
+        description="Audit recent device state transitions, security warnings, and activation events."
+        path="/activity"
+        noIndex={true}
+      />
       <div className="welcome-block activity-page-heading">
         <div>
           <span className="section-label">SECURITY INTELLIGENCE</span>

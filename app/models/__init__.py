@@ -3,5 +3,13 @@ from app.models.password_reset_token import PasswordResetToken
 from app.models.device import Device
 from app.models.location import Location
 from app.models.device_status_history import DeviceStatusHistory
+from app.models.contact_message import ContactMessage
 
-__all__ = ["User", "Device", "Location", "DeviceStatusHistory", "PasswordResetToken"]
+__all__ = [
+    "User",
+    "Device",
+    "Location",
+    "DeviceStatusHistory",
+    "PasswordResetToken",
+    "ContactMessage",
+]

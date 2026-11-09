@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.database.dependencies import get_db
@@ -7,20 +6,19 @@ from app.database.auth_dependencies import get_current_user
 from app.models.device import Device
 from app.models.user import User
 from app.models.device_status_history import DeviceStatusHistory
-from app.schemas.device import DeviceCreate
+from app.schemas.device import (
+    DeviceCreate,
+    DeviceUpdate,
+    DeviceStatusUpdate,
+    DeviceResponse,
+    DeviceTokenResponse,
+)
+from app.services.device_auth import generate_device_token
 
 router = APIRouter()
 
 
-class DeviceUpdate(BaseModel):
-    device_name: str
-
-
-class DeviceStatusUpdate(BaseModel):
-    status: str
-
-
-@router.post("/devices")
+@router.post("/devices", response_model=DeviceResponse)
 def create_device(
     device: DeviceCreate,
     db: Session = Depends(get_db),
@@ -57,7 +55,7 @@ def create_device(
     return new_device
 
 
-@router.get("/devices")
+@router.get("/devices", response_model=list[DeviceResponse])
 def get_devices(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -65,7 +63,7 @@ def get_devices(
     return db.query(Device).filter(Device.user_id == current_user.id).all()
 
 
-@router.get("/users/{user_id}/devices")
+@router.get("/users/{user_id}/devices", response_model=list[DeviceResponse])
 def get_user_devices(
     user_id: int,
     db: Session = Depends(get_db),
@@ -84,7 +82,7 @@ def get_user_devices(
     )
 
 
-@router.get("/devices/{device_id}")
+@router.get("/devices/{device_id}", response_model=DeviceResponse)
 def get_device(
     device_id: int,
     db: Session = Depends(get_db),
@@ -108,7 +106,7 @@ def get_device(
     return device
 
 
-@router.put("/devices/{device_id}")
+@router.put("/devices/{device_id}", response_model=DeviceResponse)
 def update_device(
     device_id: int,
     device_data: DeviceUpdate,
@@ -195,6 +193,76 @@ def update_device_status(
         "device_id": device.id,
         "old_status": old_status,
         "new_status": new_status
+    }
+
+
+@router.post("/devices/{device_id}/token", response_model=DeviceTokenResponse)
+def generate_or_rotate_device_token(
+    device_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Generate or rotate cryptographic telemetry credentials for an authorized edge device.
+    Only the device owner can request credential generation. Plaintext is returned only once.
+    """
+    device = (
+        db.query(Device)
+        .filter(
+            Device.id == device_id,
+            Device.user_id == current_user.id
+        )
+        .first()
+    )
+
+    if not device:
+        raise HTTPException(
+            status_code=404,
+            detail="Device not found"
+        )
+
+    raw_token, prefix, token_hash = generate_device_token()
+    device.device_token_hash = token_hash
+    device.device_token_prefix = prefix
+
+    db.commit()
+
+    return DeviceTokenResponse(
+        device_id=device.id,
+        device_token=raw_token,
+        token_prefix=prefix,
+        message="Save this device credential securely. It will never be shown again.",
+    )
+
+
+@router.delete("/devices/{device_id}/token")
+def revoke_device_token(
+    device_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Revoke telemetry credentials for a device immediately."""
+    device = (
+        db.query(Device)
+        .filter(
+            Device.id == device_id,
+            Device.user_id == current_user.id
+        )
+        .first()
+    )
+
+    if not device:
+        raise HTTPException(
+            status_code=404,
+            detail="Device not found"
+        )
+
+    device.device_token_hash = None
+    device.device_token_prefix = None
+    db.commit()
+
+    return {
+        "message": "Device credentials revoked successfully",
+        "device_id": device.id,
     }
 
 

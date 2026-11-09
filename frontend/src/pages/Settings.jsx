@@ -11,13 +11,14 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import ChangePasswordModal from "../components/ChangePasswordModal";
+import PageMeta from "../components/PageMeta";
 
 import {
   getCurrentUser,
   getDashboardSummary,
   getSystemHealth,
   getToken,
-  removeToken,
+  logoutUser,
 } from "../services/api";
 import { useToast } from "../context/useToast";
 
@@ -111,9 +112,9 @@ export default function Settings() {
     };
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     toast.info("Logged out of TRACE-X session.");
-    removeToken();
+    await logoutUser();
     navigate("/login");
   };
 
@@ -173,6 +174,12 @@ export default function Settings() {
 
   return (
     <section className="page-content">
+      <PageMeta
+        title="Account & System Settings"
+        description="Manage your TRACE-X account preferences, inspect system diagnostics, and view active sessions."
+        path="/settings"
+        noIndex={true}
+      />
       <div className="welcome-block settings-page-heading">
         <div>
           <span className="section-label">

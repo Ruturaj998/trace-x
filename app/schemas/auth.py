@@ -24,6 +24,8 @@ class LoginRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str
+    csrf_token: str | None = None
+    user: "UserResponse | None" = None
 
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr

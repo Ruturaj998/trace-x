@@ -1,0 +1,217 @@
+/* ==========================================================================
+   TRACE-X DESIGN SYSTEM — DESIGN TOKENS
+   Visual Theme: Premium Futuristic Cybersecurity Command Center
+   Identity: Deep Obsidian Black (#05070A), Elevated Surfaces (#080B10, #0D1117),
+             Tactical Lime (#D8FF3E), Coordinate Cyan (#00E5FF), Alert Crimson (#FF5C67)
+   ========================================================================== */
+
+:root {
+  /* ------------------------------------------------------------------------
+     1. COLOR SYSTEM — BACKGROUNDS & SURFACES
+     ------------------------------------------------------------------------ */
+  --color-bg-base: #05070a;                 /* Ultra-deep obsidian application root */
+  --color-bg-elevated: #080b10;             /* Secondary background / shell backdrop */
+  --color-bg-surface: #0d1117;              /* Primary panel and card surface */
+  --color-bg-surface-elevated: #11161d;     /* Secondary nested surface / table header */
+  --color-bg-surface-hover: #151b23;        /* Interactive hover surface state */
+  --color-bg-glass: rgba(13, 17, 23, 0.78); /* Frosted HUD panel surface */
+  --color-bg-overlay: rgba(5, 7, 10, 0.85); /* Modal & drawer backdrop */
+
+  /* ------------------------------------------------------------------------
+     2. COLOR SYSTEM — BORDERS & DIVIDERS
+     ------------------------------------------------------------------------ */
+  --color-border-subtle: #151b22;           /* Low-emphasis internal divider */
+  --color-border-default: #1b222b;          /* Standard structural border */
+  --color-border-elevated: #242d38;         /* High-emphasis component border */
+  --color-border-highlight: rgba(255, 255, 255, 0.08); /* Crisp 1px glass edge */
+  --color-border-accent: rgba(216, 255, 62, 0.35);    /* Active lime accent border */
+  --color-border-cyan: rgba(0, 229, 255, 0.35);       /* Telemetry cyan border */
+  --color-border-danger: rgba(255, 92, 103, 0.35);    /* Alert crimson border */
+
+  /* ------------------------------------------------------------------------
+     3. COLOR SYSTEM — TYPOGRAPHY & FOREGROUNDS
+     All combinations tested to guarantee WCAG AA (>= 4.5:1) compliance
+     ------------------------------------------------------------------------ */
+  --color-text-primary: #e8edf2;    /* High contrast (17.6:1 on #05070a, AAA) */
+  --color-text-secondary: #a5afb9;  /* Medium contrast (8.8:1 on #0d1117, AAA) */
+  --color-text-muted: #818e9d;      /* Low contrast (5.7:1 on #0d1117, AA compliant) */
+  --color-text-inverse: #05070a;    /* High-contrast dark text on lime accents */
+
+  /* ------------------------------------------------------------------------
+     4. COLOR SYSTEM — SEMANTIC & TELEMETRY ACCENTS
+     ------------------------------------------------------------------------ */
+  /* Tactical Lime — Primary actions, active hardware, verified nominal state */
+  --color-accent-lime: #d8ff3e;
+  --color-accent-lime-hover: #e5ff66;
+  --color-accent-lime-active: #c5eb32;
+  --color-accent-lime-soft: rgba(216, 255, 62, 0.1);
+  --color-accent-lime-border: rgba(216, 255, 62, 0.25);
+
+  /* Coordinate Cyan — Map telemetry, satellite trails, geographic coordinates */
+  --color-accent-cyan: #00e5ff;
+  --color-accent-cyan-hover: #33ebff;
+  --color-accent-cyan-active: #00b8cc;
+  --color-accent-cyan-soft: rgba(0, 229, 255, 0.1);
+  --color-accent-cyan-border: rgba(0, 229, 255, 0.25);
+
+  /* Alert Crimson — Lost hardware, security breach alerts, destructive actions */
+  --color-danger: #ff5c67;
+  --color-danger-hover: #ff707a;
+  --color-danger-active: #e64c57;
+  --color-danger-soft: rgba(255, 92, 103, 0.1);
+  --color-danger-border: rgba(255, 92, 103, 0.35);
+
+  /* Warning Amber — Security attention needed, diagnostic warnings */
+  --color-warning: #ffc857;
+  --color-warning-hover: #ffd373;
+  --color-warning-active: #e6b145;
+  --color-warning-soft: rgba(255, 200, 87, 0.1);
+  --color-warning-border: rgba(255, 200, 87, 0.35);
+
+  /* Nominal Success — System nominal, verified fixes, successful actions */
+  --color-success: #63e6be;
+  --color-success-hover: #79ebd2;
+  --color-success-active: #50caa5;
+  --color-success-soft: rgba(99, 230, 190, 0.1);
+  --color-success-border: rgba(99, 230, 190, 0.35);
+
+  /* ------------------------------------------------------------------------
+     5. BACKWARD-COMPATIBILITY ALIASES
+     Preserves all existing CSS rules referencing legacy variable names
+     ------------------------------------------------------------------------ */
+  --bg: var(--color-bg-base);
+  --bg-soft: var(--color-bg-elevated);
+  --panel: var(--color-bg-surface);
+  --panel-soft: var(--color-bg-surface-elevated);
+  --panel-hover: var(--color-bg-surface-hover);
+
+  --border: var(--color-border-default);
+  --border-soft: var(--color-border-subtle);
+
+  --text: var(--color-text-primary);
+  --text-soft: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
+
+  --accent: var(--color-accent-lime);
+  --accent-soft: var(--color-accent-lime-soft);
+
+  --danger: var(--color-danger);
+  --danger-soft: var(--color-danger-soft);
+
+  --success: var(--color-success);
+  --success-soft: var(--color-success-soft);
+
+  --warning: var(--color-warning);
+  --warning-soft: var(--color-warning-soft);
+
+  --mono: var(--font-mono);
+
+  /* ------------------------------------------------------------------------
+     6. TYPOGRAPHY SCALE
+     ------------------------------------------------------------------------ */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Type Sizes */
+  --font-size-3xs: 0.5625rem; /* 9px — HUD micro telemetry tags */
+  --font-size-2xs: 0.625rem;  /* 10px — Technical status badges */
+  --font-size-xs: 0.75rem;    /* 12px — Timestamps, captions, helpers */
+  --font-size-sm: 0.8125rem;  /* 13px — Secondary labels, inputs */
+  --font-size-base: 0.875rem; /* 14px — Standard body text */
+  --font-size-md: 0.9375rem;  /* 15px — Navigation links, buttons */
+  --font-size-lg: 1rem;       /* 16px — Emphasized UI text, subheadings */
+  --font-size-xl: 1.125rem;   /* 18px — Panel titles, modal headers */
+  --font-size-2xl: 1.375rem;  /* 22px — Section headers */
+  --font-size-3xl: 1.75rem;   /* 28px — Page titles */
+  --font-size-4xl: 2.25rem;   /* 36px — KPI metrics & hero headings */
+
+  /* Type Weights */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Line Heights */
+  --line-height-none: 1;
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.65;
+
+  /* Letter Spacing */
+  --letter-spacing-tight: -0.015em;
+  --letter-spacing-normal: 0em;
+  --letter-spacing-wide: 0.04em;
+  --letter-spacing-wider: 0.08em;
+  --letter-spacing-widest: 0.15em;
+
+  /* ------------------------------------------------------------------------
+     7. SPACING SCALE
+     ------------------------------------------------------------------------ */
+  --space-1: 0.25rem;  /* 4px */
+  --space-2: 0.5rem;   /* 8px */
+  --space-3: 0.625rem; /* 10px */
+  --space-4: 0.75rem;  /* 12px */
+  --space-5: 0.875rem; /* 14px */
+  --space-6: 1rem;     /* 16px */
+  --space-7: 1.25rem;  /* 20px */
+  --space-8: 1.5rem;   /* 24px */
+  --space-9: 1.75rem;  /* 28px */
+  --space-10: 2rem;    /* 32px */
+  --space-12: 2.5rem;  /* 40px */
+  --space-14: 3rem;    /* 48px */
+  --space-16: 3.5rem;  /* 56px */
+  --space-20: 4rem;    /* 64px */
+
+  /* ------------------------------------------------------------------------
+     8. BORDER-RADIUS SCALE
+     ------------------------------------------------------------------------ */
+  --radius-none: 0px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+
+  /* ------------------------------------------------------------------------
+     9. SHADOWS & AMBIENT TELEMETRY GLOWS
+     Restrained, professional lighting without overwhelming neon bleed
+     ------------------------------------------------------------------------ */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 28px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 20px 48px rgba(0, 0, 0, 0.7);
+
+  --glow-lime: 0 0 16px rgba(216, 255, 62, 0.18);
+  --glow-cyan: 0 0 16px rgba(0, 229, 255, 0.18);
+  --glow-danger: 0 0 16px rgba(255, 92, 103, 0.22);
+  --glow-subtle: 0 0 1px rgba(255, 255, 255, 0.15);
+
+  /* ------------------------------------------------------------------------
+     10. Z-INDEX SCALE
+     ------------------------------------------------------------------------ */
+  --z-deep: -1;
+  --z-base: 0;
+  --z-surface: 1;
+  --z-elevated: 10;
+  --z-sticky: 100;
+  --z-dropdown: 200;
+  --z-overlay: 500;
+  --z-modal: 1000;
+  --z-popover: 1500;
+  --z-toast: 9999;
+
+  /* ------------------------------------------------------------------------
+     11. ANIMATION & TRANSITION TIMINGS
+     ------------------------------------------------------------------------ */
+  --duration-fast: 150ms;
+  --duration-base: 200ms;
+  --duration-smooth: 300ms;
+  --ease-default: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out: ease-out;
+  --ease-in-out: ease-in-out;
+  --transition-fast: var(--duration-fast) var(--ease-default);
+  --transition-base: var(--duration-base) var(--ease-default);
+  --transition-smooth: var(--duration-smooth) var(--ease-default);
+}

@@ -1,0 +1,124 @@
+/* ==========================================================================
+   TRACE-X DESIGN SYSTEM — BASE & ACCESSIBILITY FOUNDATIONS
+   Safe global defaults, keyboard accessibility, scrollbars, and reduced motion
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. GLOBAL RESET & BOX SIZING
+   -------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-sans, "Inter", sans-serif);
+  font-size: 16px;
+  line-height: var(--line-height-normal, 1.5);
+  color: var(--color-text-primary, #e8edf2);
+  background-color: var(--color-bg-base, #05070a);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-synthesis: none;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 100%;
+  min-height: 100vh;
+  background-color: var(--color-bg-base, #05070a);
+  color: var(--color-text-primary, #e8edf2);
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --------------------------------------------------------------------------
+   2. ACCESSIBLE KEYBOARD FOCUS INDICATORS
+   Strict WCAG 2.4.7 (Focus Visible) compliance across all interactive elements
+   -------------------------------------------------------------------------- */
+:focus-visible {
+  outline: 2px solid var(--color-accent-lime, #d8ff3e);
+  outline-offset: 2px;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* --------------------------------------------------------------------------
+   3. SELECTION STYLING
+   -------------------------------------------------------------------------- */
+::selection {
+  background-color: rgba(216, 255, 62, 0.28);
+  color: #ffffff;
+}
+
+::-moz-selection {
+  background-color: rgba(216, 255, 62, 0.28);
+  color: #ffffff;
+}
+
+/* --------------------------------------------------------------------------
+   4. CYBER TELEMETRY SCROLLBARS
+   -------------------------------------------------------------------------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-full, 9999px);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* --------------------------------------------------------------------------
+   5. RESPONSIVE MEDIA & MAP SHIELD
+   Crucial: Leaflet map tiles must NEVER have max-width: 100% applied
+   -------------------------------------------------------------------------- */
+img:not(.leaflet-tile),
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Safeguard for Leaflet map canvas and vector layers */
+.leaflet-container img {
+  max-width: none !important;
+  max-height: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   6. REDUCED-MOTION ACCESSIBILITY
+   Strict WCAG 2.3.3 (Animation from Interactions) compliance
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

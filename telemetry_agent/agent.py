@@ -1,16 +1,18 @@
-"""
-TRACE-X Edge Telemetry Agent Entrypoint.
+"""TRACE-X Edge Telemetry Agent Entrypoint.
 
 Responsible for reading genuine GPS fixes from verified hardware/network interfaces
-and transmitting authenticated telemetry to TRACE-X POST /locations endpoint.
+and transmitting authenticated telemetry to TRACE-X POST /locations or POST /locations/sync endpoints.
 
 STRICT POLICY:
 Simulation, random walk, and coordinate fabrication are prohibited.
+Supports store-and-forward offline buffering with secure local queue.
 """
 
 import argparse
+from datetime import datetime, timezone
 import sys
 import time
+import uuid
 
 from telemetry_agent.client import TraceXClient
 from telemetry_agent.config import TelemetryConfig
@@ -19,17 +21,20 @@ from telemetry_agent.gps_adapter import (
     NoHardwareAdapter,
     select_gps_adapter,
 )
+from telemetry_agent.offline_queue import OfflineTelemetryQueue
 
 
-def print_banner(config: TelemetryConfig, adapter_name: str, hardware_available: bool):
+def print_banner(config: TelemetryConfig, adapter_name: str, hardware_available: bool, queue_size: int):
     print("=" * 64)
     print("  TRACE-X EDGE TELEMETRY AGENT — HARDWARE INTEGRATION")
     print("=" * 64)
     print(f"Target API URL    : {config.api_url}")
     print(f"Device ID         : {config.device_id or 'Not specified'}")
+    print(f"Auth Mode         : {'DEVICE TOKEN' if config.device_token else ('USER JWT' if config.token else 'EMAIL/PASSWORD')}")
     print(f"GPS Source Mode   : {config.gps_source.upper()}")
     print(f"Active Adapter    : {adapter_name}")
     print(f"Provider Status   : {'AVAILABLE & READY' if hardware_available else 'NOT DETECTED'}")
+    print(f"Offline Buffer    : {queue_size} pending fixes ({config.queue_path})")
     print("-" * 64)
     print("DATA INTEGRITY NOTICE:")
     print("  * Coordinate fabrication and simulation are strictly disabled.")
@@ -38,11 +43,34 @@ def print_banner(config: TelemetryConfig, adapter_name: str, hardware_available:
     print("=" * 64)
 
 
+def sync_offline_buffer(client: TraceXClient, device_id: int, queue: OfflineTelemetryQueue):
+    """Attempt to drain and synchronize pending offline fixes in batches of up to 100."""
+    pending_count = queue.size()
+    if pending_count == 0:
+        return
+
+    print(f"\n[OFFLINE BUFFER] Synchronizing {pending_count} buffered fixes with TRACE-X...")
+    while queue.size() > 0:
+        batch = queue.peek(limit=100)
+        if not batch:
+            break
+        try:
+            resp = client.send_sync_batch(device_id=device_id, fixes=batch)
+            synced = resp.get("synced_count", len(batch))
+            skipped = resp.get("duplicates_skipped", 0)
+            print(f"  -> Batch synchronized: {synced} synced, {skipped} duplicate(s) skipped.")
+            queue.drain(len(batch))
+        except Exception as e:
+            print(f"  -> Offline sync interrupted: {e}")
+            break
+
+
 def run_agent():
     parser = argparse.ArgumentParser(description="TRACE-X Edge Telemetry Agent")
     parser.add_argument("--check-hardware", action="store_true", help="Inspect and report detected GPS provider")
     parser.add_argument("--once", action="store_true", help="Send a single fix and exit")
     parser.add_argument("--device-id", type=int, help="Override TRACEX_DEVICE_ID")
+    parser.add_argument("--device-token", type=str, help="Override TRACEX_DEVICE_TOKEN")
     parser.add_argument("--interval", type=int, help="Override TELEMETRY_INTERVAL (seconds)")
     parser.add_argument("--manual-lat", type=float, help="Explicit real latitude read from hardware instrument")
     parser.add_argument("--manual-lon", type=float, help="Explicit real longitude read from hardware instrument")
@@ -53,6 +81,8 @@ def run_agent():
     config = TelemetryConfig.from_env()
     if args.device_id:
         config.device_id = args.device_id
+    if args.device_token:
+        config.device_token = args.device_token
     if args.interval:
         config.interval_seconds = args.interval
 
@@ -80,7 +110,8 @@ def run_agent():
             real_acc=real_acc,
         )
 
-    print_banner(config, adapter.name(), adapter.is_available())
+    queue = OfflineTelemetryQueue(config.queue_path)
+    print_banner(config, adapter.name(), adapter.is_available(), queue.size())
 
     if args.check_hardware:
         if adapter.is_available():
@@ -97,8 +128,13 @@ def run_agent():
         sys.exit(1)
 
     # Initialize API Client and Authenticate
-    client = TraceXClient(base_url=config.api_url, token=config.token)
-    if not client.token:
+    client = TraceXClient(
+        base_url=config.api_url,
+        token=config.token,
+        device_token=config.device_token,
+    )
+
+    if not client.device_token and not client.token:
         if config.email and config.password:
             print(f"Authenticating with TRACE-X as {config.email}...")
             try:
@@ -108,7 +144,7 @@ def run_agent():
                 print(f"[AUTH ERROR] Failed to authenticate: {e}")
                 sys.exit(1)
         else:
-            print("\n[ERROR] Authentication required. Provide TRACEX_API_TOKEN or TRACEX_EMAIL + TRACEX_PASSWORD.")
+            print("\n[ERROR] Authentication required. Provide TRACEX_DEVICE_TOKEN, TRACEX_API_TOKEN, or TRACEX_EMAIL + TRACEX_PASSWORD.")
             sys.exit(1)
 
     if isinstance(adapter, NoHardwareAdapter):
@@ -122,13 +158,17 @@ def run_agent():
         print("  4. Provide genuine instrument readings via: --manual-lat <LAT> --manual-lon <LON> --once")
         sys.exit(2)
 
-    # Main telemetry loop with exponential backoff & resilience
+    # Main telemetry loop with store-and-forward offline buffering
     print(f"\nStarting telemetry transmission loop (Interval: {config.interval_seconds}s)...")
     current_backoff = 0
     max_backoff = 60
 
     try:
         while True:
+            # First attempt to sync any buffered offline fixes
+            if queue.size() > 0:
+                sync_offline_buffer(client, config.device_id, queue)
+
             # 1. Acquire fix from adapter
             try:
                 fix = adapter.get_fix()
@@ -158,9 +198,12 @@ def run_agent():
                 time.sleep(config.interval_seconds)
                 continue
 
+            recorded_at_iso = datetime.now(timezone.utc).isoformat()
+            idempotency_key = str(uuid.uuid4())
+
             print(f"Fix acquired: lat={fix.latitude:.6f}, lon={fix.longitude:.6f}, acc={fix.accuracy or 'N/A'}")
 
-            # 4. Transmit fix with 401 retry, 403, 404, 422, timeout handling
+            # 4. Transmit fix or buffer offline on network disruption
             success = False
             try:
                 result = client.send_location(
@@ -168,6 +211,8 @@ def run_agent():
                     latitude=fix.latitude,
                     longitude=fix.longitude,
                     accuracy=fix.accuracy,
+                    recorded_at=recorded_at_iso,
+                    idempotency_key=idempotency_key,
                 )
                 print(f"  -> Ingestion confirmed by TRACE-X (Record ID: {result.get('id')}, Time: {result.get('timestamp')})")
                 success = True
@@ -176,8 +221,8 @@ def run_agent():
             except PermissionError as pe:
                 err_str = str(pe)
                 if "401" in err_str:
-                    print("  -> [HTTP 401 UNAUTHORIZED] Access token expired or invalid. Attempting re-authentication...")
-                    if config.email and config.password:
+                    print("  -> [HTTP 401 UNAUTHORIZED] Access credential expired or invalid.")
+                    if config.email and config.password and not client.device_token:
                         try:
                             client.authenticate(config.email, config.password)
                             print("  -> Re-authentication successful! Retrying location submission...")
@@ -186,16 +231,16 @@ def run_agent():
                                 latitude=fix.latitude,
                                 longitude=fix.longitude,
                                 accuracy=fix.accuracy,
+                                recorded_at=recorded_at_iso,
+                                idempotency_key=idempotency_key,
                             )
                             print(f"  -> Ingestion confirmed (Record ID: {result.get('id')})")
                             success = True
                             current_backoff = 0
                         except Exception as re_err:
                             print(f"  -> Re-authentication/retry failed: {re_err}")
-                    else:
-                        print("  -> Cannot re-authenticate: TRACEX_EMAIL and TRACEX_PASSWORD not configured.")
                 elif "403" in err_str:
-                    print(f"  -> [HTTP 403 FORBIDDEN] Device #{config.device_id} is not accessible with current user account.")
+                    print(f"  -> [HTTP 403 FORBIDDEN] Device #{config.device_id} access forbidden: {pe}")
                 else:
                     print(f"  -> [PERMISSION ERROR] {pe}")
 
@@ -207,7 +252,15 @@ def run_agent():
 
             except (ConnectionError, TimeoutError) as net_err:
                 current_backoff = min(max_backoff, (current_backoff * 2) if current_backoff > 0 else 2)
-                print(f"  -> [NETWORK / TIMEOUT ERROR] {net_err}. Backing off for {current_backoff}s...")
+                print(f"  -> [NETWORK INTERRUPTION] {net_err}. Buffering fix to local offline queue...")
+                queue.enqueue({
+                    "latitude": fix.latitude,
+                    "longitude": fix.longitude,
+                    "accuracy": fix.accuracy,
+                    "recorded_at": recorded_at_iso,
+                    "idempotency_key": idempotency_key,
+                })
+                print(f"  -> Fix stored in offline queue ({queue.size()} pending). Backing off for {current_backoff}s...")
                 time.sleep(current_backoff)
 
             except Exception as e:

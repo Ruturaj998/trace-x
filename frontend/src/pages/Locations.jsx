@@ -15,6 +15,7 @@ import {
 } from "../services/api";
 import RealMap from "../components/RealMap";
 import { isValidLocation, filterValidLocations } from "../utils/coordinates";
+import PageMeta from "../components/PageMeta";
 
 export default function Locations() {
   const [devices, setDevices] = useState([]);
@@ -125,6 +126,12 @@ export default function Locations() {
 
   return (
     <section className="page-content">
+      <PageMeta
+        title="Location Intelligence & History"
+        description="Monitor real-time GPS coordinates, historical telemetry, and tracking trails."
+        path="/locations"
+        noIndex={true}
+      />
       <div className="welcome-block location-page-heading">
         <div>
           <span className="section-label">LOCATION INTELLIGENCE</span>

@@ -1,0 +1,652 @@
+/* ==========================================================================
+   TRACE-X DESIGN SYSTEM — DEVICES (HARDWARE ASSET INVENTORY)
+   Visual Direction: Obsidian Command Center (#05070A / #080B10 / #0D1117),
+                     Tactical Lime (#D8FF3E), Coordinate Cyan (#00E5FF),
+                     Alert Crimson (#FF5C67), Warning Amber (#FFC857)
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. DEVICES CONTAINER & CONTENT
+   -------------------------------------------------------------------------- */
+.devices-content {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: var(--space-6, 24px) var(--space-6, 24px) var(--space-8, 48px);
+  box-sizing: border-box;
+}
+
+/* --------------------------------------------------------------------------
+   2. DEVICES HUD HEADER
+   -------------------------------------------------------------------------- */
+.devices-hud-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4, 16px);
+  padding: var(--space-2, 8px) 0 var(--space-6, 24px);
+  margin-bottom: var(--space-4, 16px);
+  border-bottom: 1px solid var(--color-border-subtle, #151b22);
+}
+
+.devices-title-group {
+  flex: 1;
+  min-width: 0;
+}
+
+.devices-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  margin-bottom: var(--space-2, 8px);
+  color: var(--color-accent-lime, #d8ff3e);
+  font-family: var(--font-mono, "DM Mono", monospace);
+  font-size: var(--font-size-3xs, 9px);
+  font-weight: var(--font-weight-medium, 500);
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+}
+
+.devices-hud-header h1 {
+  margin: 0;
+  color: var(--color-text-primary, #e8edf2);
+  font-size: var(--font-size-2xl, 24px);
+  line-height: var(--line-height-tight, 1.2);
+  font-weight: var(--font-weight-semibold, 600);
+  letter-spacing: -0.5px;
+}
+
+.devices-hud-header p {
+  max-width: 680px;
+  margin: var(--space-2, 8px) 0 0;
+  color: var(--color-text-secondary, #a5afb9);
+  font-size: var(--font-size-sm, 13px);
+  line-height: var(--line-height-relaxed, 1.6);
+}
+
+.devices-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+/* Header Stat Pills */
+.devices-stat-pills {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  background: var(--color-bg-base, #05070a);
+  border: 1px solid var(--color-border-subtle, #151b22);
+  border-radius: var(--radius-full, 9999px);
+}
+
+.devices-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  font-family: var(--font-mono, "DM Mono", monospace);
+  font-size: var(--font-size-2xs, 10px);
+  border-radius: var(--radius-full, 9999px);
+  line-height: 1;
+}
+
+.stat-pill-label {
+  color: var(--color-text-muted, #818e9d);
+  letter-spacing: 0.5px;
+}
+
+.stat-pill-val {
+  color: var(--color-text-primary, #e8edf2);
+  font-weight: var(--font-weight-semibold, 600);
+}
+
+.devices-stat-pill.active {
+  background: rgba(216, 255, 62, 0.08);
+  border: 1px solid rgba(216, 255, 62, 0.2);
+}
+
+.devices-stat-pill.active .stat-pill-val {
+  color: var(--color-accent-lime, #d8ff3e);
+}
+
+.devices-stat-pill.lost {
+  background: rgba(255, 92, 103, 0.1);
+  border: 1px solid rgba(255, 92, 103, 0.3);
+}
+
+.devices-stat-pill.lost .stat-pill-val {
+  color: var(--color-danger, #ff5c67);
+}
+
+/* --------------------------------------------------------------------------
+   3. ERROR BANNER
+   -------------------------------------------------------------------------- */
+.devices-error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4, 16px);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  margin-bottom: var(--space-5, 20px);
+  background: rgba(255, 92, 103, 0.08);
+  border: 1px solid var(--color-border-danger, rgba(255, 92, 103, 0.35));
+  border-radius: var(--radius-md, 8px);
+}
+
+.devices-error-details {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+}
+
+.devices-error-details strong {
+  display: block;
+  color: var(--color-danger, #ff5c67);
+  font-size: var(--font-size-sm, 13px);
+  font-family: var(--font-mono, "DM Mono", monospace);
+  letter-spacing: 0.5px;
+}
+
+.devices-error-details span {
+  display: block;
+  color: var(--color-text-secondary, #a5afb9);
+  font-size: var(--font-size-xs, 12px);
+}
+
+/* --------------------------------------------------------------------------
+   4. INVENTORY TOOLBAR (SEARCH & FILTERS)
+   -------------------------------------------------------------------------- */
+.devices-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3, 12px);
+  padding: 10px 14px;
+  margin-bottom: var(--space-5, 20px);
+  background: var(--color-bg-surface, #0d1117);
+  border: 1px solid var(--color-border-subtle, #151b22);
+  border-radius: var(--radius-md, 8px);
+  flex-wrap: wrap;
+}
+
+.devices-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 220px;
+  max-width: 380px;
+}
+
+.devices-search-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--color-text-muted, #818e9d);
+  pointer-events: none;
+}
+
+.devices-search-input {
+  width: 100%;
+  height: 34px;
+  background: var(--color-bg-base, #05070a);
+  border: 1px solid var(--color-border-default, #1b222b);
+  border-radius: var(--radius-sm, 6px);
+  padding: 0 30px 0 34px;
+  color: var(--color-text-primary, #e8edf2);
+  font-family: var(--font-mono, "DM Mono", monospace);
+  font-size: var(--font-size-xs, 12px);
+  transition: border-color var(--duration-fast, 0.15s) ease, box-shadow var(--duration-fast, 0.15s) ease;
+}
+
+.devices-search-input:focus {
+  outline: none;
+  border-color: var(--color-accent-lime, #d8ff3e);
+  box-shadow: 0 0 0 1px rgba(216, 255, 62, 0.25);
+}
+
+.devices-search-input::placeholder {
+  color: var(--color-text-muted, #818e9d);
+}
+
+.devices-search-clear {
+  position: absolute;
+  right: 8px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #818e9d);
+  cursor: pointer;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: color var(--duration-fast, 0.15s) ease;
+}
+
+.devices-search-clear:hover {
+  color: var(--color-text-primary, #e8edf2);
+}
+
+/* Status Filter Tabs */
+.devices-filter-tabs {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--color-bg-base, #05070a);
+  padding: 3px;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid var(--color-border-subtle, #151b22);
+}
+
+.filter-tab {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs, 4px);
+  padding: 5px 11px;
+  font-family: var(--font-mono, "DM Mono", monospace);
+  font-size: var(--font-size-2xs, 11px);
+  color: var(--color-text-secondary, #a5afb9);
+  cursor: pointer;
+  line-height: 1;
+  transition: all var(--duration-fast, 0.15s) ease;
+  white-space: nowrap;
+}
+
+.filter-tab:hover {
+  color: var(--color-text-primary, #e8edf2);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.filter-tab.active {
+  background: var(--color-bg-surface-elevated, #11161d);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--color-accent-lime, #d8ff3e);
+  font-weight: var(--font-weight-medium, 500);
+}
+
+.filter-tab.lost.active {
+  color: var(--color-danger, #ff5c67);
+  border-color: rgba(255, 92, 103, 0.3);
+}
+
+.clear-filters-btn {
+  font-size: 11px;
+  padding: 5px 10px;
+}
+
+/* --------------------------------------------------------------------------
+   5. DEVICE INVENTORY GRID & CARDS
+   -------------------------------------------------------------------------- */
+.devices-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: var(--space-4, 16px);
+}
+
+.device-card-cyber {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-surface, #0d1117);
+  border: 1px solid var(--color-border-default, #1b222b);
+  border-radius: var(--radius-md, 8px);
+  padding: var(--space-4, 16px) var(--space-4, 16px) 14px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform var(--duration-fast, 0.15s) ease,
+              border-color var(--duration-fast, 0.15s) ease,
+              box-shadow var(--duration-fast, 0.15s) ease;
+}
+
+.device-card-cyber:hover,
+.device-card-cyber:focus-visible {
+  outline: none;
+  transform: translateY(-2px);
+  border-color: rgba(216, 255, 62, 0.35);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 14px rgba(216, 255, 62, 0.06);
+}
+
+.device-card-cyber.status-lost {
+  border-color: rgba(255, 92, 103, 0.3);
+}
+
+.device-card-cyber.status-lost:hover,
+.device-card-cyber.status-lost:focus-visible {
+  border-color: var(--color-danger, #ff5c67);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 16px rgba(255, 92, 103, 0.12);
+}
+
+.device-card-cyber.status-disabled:hover,
+.device-card-cyber.status-disabled:focus-visible,
+.device-card-cyber.status-unknown:hover,
+.device-card-cyber.status-unknown:focus-visible {
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45), 0 0 10px rgba(255, 255, 255, 0.03);
+}
+
+/* Card Header */
+.device-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3, 12px);
+  margin-bottom: var(--space-3, 12px);
+}
+
+.device-card-identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+}
+
+.device-hardware-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm, 6px);
+  background: var(--color-bg-base, #05070a);
+  border: 1px solid var(--color-border-subtle, #151b22);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-accent-lime, #d8ff3e);
+  flex-shrink: 0;
+}
+
+.device-card-cyber.status-lost .device-hardware-icon {
+  color: var(--color-danger, #ff5c67);
+  border-color: rgba(255, 92, 103, 0.25);
+}
+
+.device-card-cyber.status-disabled .device-hardware-icon,
+.device-card-cyber.status-unknown .device-hardware-icon {
+  color: var(--color-text-muted, #818e9d);
+  border-color: var(--color-border-subtle, #151b22);
+}
+
+.device-asset-badge {
+  font-family: var(--font-mono, "DM Mono", monospace);
+  font-size: var(--font-size-3xs, 10px);
+  color: var(--color-text-muted, #818e9d);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+/* Card Body */
+.device-card-body {
+  margin-bottom: var(--space-3, 12px);
+}
+
+.device-card-name {
+  margin: 0 0 4px;
+  font-size: var(--font-size-base, 15px);
+  font-weight: var(--font-weight-semibold, 600);
+  color: var(--color-text-primary, #e8edf2);
+  line-height: var(--line-height-snug, 1.3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.device-card-identifier {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono, "DM Mono", monospace);
+  font-size: var(--font-size-2xs, 11px);
+}
+
+.device-card-identifier .id-label {
+  color: var(--color-text-muted, #818e9d);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+
+.device-card-identifier .id-mono {
+  color: var(--color-accent-cyan, #00e5ff);
+  background: rgba(0, 229, 255, 0.05);
+  border: 1px solid rgba(0, 229, 255, 0.18);
+  padding: 1px 6px;
+  border-radius: var(--radius-xs, 4px);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Technical Telemetry Row */
+.device-card-telemetry-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+  padding: 8px 10px;
+  background: var(--color-bg-base, #05070a);
+  border: 1px solid var(--color-border-subtle, #151b22);
+  border-radius: var(--radius-sm, 6px);
+  margin-bottom: var(--space-3, 12px);
+}
+
+.telemetry-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.telemetry-item-label {
+  font-family: var(--font-mono, "DM Mono", monospace);
+  font-size: var(--font-size-3xs, 9px);
+  color: var(--color-text-muted, #818e9d);
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+
+.telemetry-item-value {
+  font-family: var(--font-mono, "DM Mono", monospace);
+  font-size: var(--font-size-2xs, 11px);
+  font-weight: var(--font-weight-medium, 500);
+}
+
+.telemetry-item-value.active {
+  color: var(--color-accent-lime, #d8ff3e);
+}
+
+.telemetry-item-value.danger {
+  color: var(--color-danger, #ff5c67);
+}
+
+.telemetry-item-value.muted {
+  color: var(--color-text-muted, #818e9d);
+}
+
+/* Action Controls */
+.device-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-border-subtle, #151b22);
+}
+
+.device-toggle-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: var(--radius-xs, 4px);
+  font-family: var(--font-mono, "DM Mono", monospace);
+  font-size: var(--font-size-3xs, 10px);
+  font-weight: var(--font-weight-medium, 500);
+  background: var(--color-bg-base, #05070a);
+  border: 1px solid var(--color-border-subtle, #151b22);
+  color: var(--color-text-secondary, #a5afb9);
+  cursor: pointer;
+  transition: all var(--duration-fast, 0.15s) ease;
+  user-select: none;
+}
+
+.device-toggle-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-primary, #e8edf2);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.device-toggle-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Active State */
+.device-toggle-btn.toggle-active.current {
+  background: rgba(216, 255, 62, 0.1);
+  border-color: rgba(216, 255, 62, 0.35);
+  color: var(--color-accent-lime, #d8ff3e);
+}
+
+/* Lost State */
+.device-toggle-btn.toggle-lost.current {
+  background: rgba(255, 92, 103, 0.12);
+  border-color: rgba(255, 92, 103, 0.4);
+  color: var(--color-danger, #ff5c67);
+}
+
+/* Disabled State */
+.device-toggle-btn.toggle-disabled.current {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--color-text-muted, #818e9d);
+}
+
+/* Inspect Button */
+.device-inspect-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: var(--radius-xs, 4px);
+  font-family: var(--font-mono, "DM Mono", monospace);
+  font-size: var(--font-size-3xs, 10px);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--color-border-default, #1b222b);
+  color: var(--color-text-secondary, #a5afb9);
+  cursor: pointer;
+  transition: all var(--duration-fast, 0.15s) ease;
+}
+
+.device-inspect-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--color-text-primary, #e8edf2);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Updating Scrim */
+.device-updating-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 7, 10, 0.88);
+  backdrop-filter: blur(3px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2, 8px);
+  color: var(--color-accent-lime, #d8ff3e);
+  font-family: var(--font-mono, "DM Mono", monospace);
+  font-size: var(--font-size-2xs, 10px);
+  letter-spacing: 1px;
+  z-index: 5;
+}
+
+/* --------------------------------------------------------------------------
+   6. SKELETON LOADERS
+   -------------------------------------------------------------------------- */
+.device-card-skeleton {
+  background: var(--color-bg-surface, #0d1117);
+  border: 1px solid var(--color-border-subtle, #151b22);
+  border-radius: var(--radius-md, 8px);
+  padding: var(--space-4, 16px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 255, 255, 0.07) 50%,
+    rgba(255, 255, 255, 0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.8s infinite ease-in-out;
+  border-radius: 4px;
+}
+
+@keyframes skeletonPulse {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   7. RESPONSIVE BREAKPOINTS
+   -------------------------------------------------------------------------- */
+@media (max-width: 900px) {
+  .devices-hud-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-4, 16px);
+  }
+
+  .devices-header-actions {
+    justify-content: space-between;
+  }
+
+  .devices-grid {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .devices-content {
+    padding: var(--space-4, 16px) var(--space-3, 12px) var(--space-6, 24px);
+  }
+
+  .devices-header-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .devices-stat-pills {
+    justify-content: center;
+  }
+
+  .devices-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .devices-search-box {
+    max-width: 100%;
+  }
+
+  .devices-filter-tabs {
+    overflow-x: auto;
+    justify-content: flex-start;
+  }
+
+  .devices-grid {
+    grid-template-columns: 1fr;
+  }
+}

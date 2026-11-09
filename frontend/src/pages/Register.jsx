@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import { getToken, registerUser } from "../services/api";
 import { useToast } from "../context/useToast";
 import tracexLogo from "../assets/tracex-logo.png";
+import PageMeta from "../components/PageMeta";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -42,10 +43,16 @@ export default function Register() {
 
   return (
     <div className="login-page">
+      <PageMeta
+        title="Create Account"
+        description="Create a secure TRACE-X account to register hardware, track stolen devices, and receive security telemetry alerts."
+        path="/register"
+      />
+
       <div className="login-card">
         <img
           src={tracexLogo}
-          alt="TRACE-X logo"
+          alt="TRACE-X — Device Security"
           className="brand-logo login-logo"
         />
 
@@ -106,7 +113,15 @@ export default function Register() {
         </form>
         
         <div style={{ marginTop: "1rem", textAlign: "center" }}>
-            <Link to="/login" style={{ color: "var(--tx-accent-primary)" }}>Already have an account? Sign In</Link>
+            <Link to="/login" style={{ color: "var(--accent)" }}>Already have an account? Sign In</Link>
+        </div>
+
+        <div style={{ marginTop: "1.4rem", paddingTop: "1rem", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "center", gap: "16px", fontSize: "0.8rem" }}>
+            <Link to="/faq" style={{ color: "var(--text-muted)", textDecoration: "none" }}>FAQ</Link>
+            <span style={{ color: "var(--border)" }}>•</span>
+            <Link to="/contact" style={{ color: "var(--text-muted)", textDecoration: "none" }}>Support</Link>
+            <span style={{ color: "var(--border)" }}>•</span>
+            <Link to="/privacy" style={{ color: "var(--text-muted)", textDecoration: "none" }}>Privacy</Link>
         </div>
       </div>
     </div>

@@ -1,9 +1,16 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap");
+@import "./styles/tokens.css";
+@import "./styles/base.css";
+@import "./styles/effects.css";
+@import "./styles/components.css";
+@import "./styles/navigation.css";
+@import "./styles/dashboard.css";
+@import "./styles/devices.css";
 
 :root {
-  font-family: "Inter", sans-serif;
-  color: #e8edf2;
-  background: #07090d;
+  font-family: var(--font-sans, "Inter", sans-serif);
+  color: var(--color-text-primary, #e8edf2);
+  background: var(--color-bg-base, #05070a);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -21,7 +28,7 @@ body,
 }
 
 body {
-  background: #07090d;
+  background: var(--color-bg-base, #05070a);
 }
 
 button {

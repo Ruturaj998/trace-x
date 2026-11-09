@@ -1,21 +1,37 @@
-"""
-HTTP Client for transmitting authenticated telemetry to TRACE-X API.
+"""HTTP Client for transmitting authenticated telemetry to TRACE-X API.
 Uses Python standard library (urllib.request) for zero external dependencies.
+Supports both user JWT bearer authentication and dedicated device token authentication (X-Device-Token).
 """
 
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 import urllib.error
 import urllib.request
 
 
 class TraceXClient:
-    def __init__(self, base_url: str, token: Optional[str] = None):
+    def __init__(
+        self,
+        base_url: str,
+        token: Optional[str] = None,
+        device_token: Optional[str] = None,
+    ):
         self.base_url = base_url.rstrip("/")
         self.token = token
+        self.device_token = device_token
+
+    def _get_auth_headers(self) -> Dict[str, str]:
+        headers = {}
+        if self.device_token:
+            headers["X-Device-Token"] = self.device_token
+        elif self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+        else:
+            raise PermissionError("Authentication token or device credential is required to send telemetry (HTTP 401).")
+        return headers
 
     def authenticate(self, email: str, password: str) -> str:
-        """Authenticate using email and password against /auth/login."""
+        """Authenticate using user email and password against /auth/login."""
         url = f"{self.base_url}/auth/login"
         payload = json.dumps({"email": email, "password": password}).encode("utf-8")
         req = urllib.request.Request(
@@ -49,28 +65,31 @@ class TraceXClient:
         latitude: float,
         longitude: float,
         accuracy: Optional[float] = None,
+        recorded_at: Optional[str] = None,
+        idempotency_key: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Send a real GPS fix to POST /locations."""
-        if not self.token:
-            raise PermissionError("Authentication token is required to send telemetry (HTTP 401).")
+        headers = self._get_auth_headers()
+        headers["Content-Type"] = "application/json"
 
         url = f"{self.base_url}/locations"
-        body = {
+        body: Dict[str, Any] = {
             "device_id": device_id,
             "latitude": latitude,
             "longitude": longitude,
         }
         if accuracy is not None:
             body["accuracy"] = accuracy
+        if recorded_at is not None:
+            body["recorded_at"] = recorded_at
+        if idempotency_key is not None:
+            body["idempotency_key"] = idempotency_key
 
         payload = json.dumps(body).encode("utf-8")
         req = urllib.request.Request(
             url,
             data=payload,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.token}",
-            },
+            headers=headers,
             method="POST",
         )
 
@@ -80,9 +99,9 @@ class TraceXClient:
         except urllib.error.HTTPError as e:
             error_body = e.read().decode("utf-8", errors="replace")
             if e.code == 401:
-                raise PermissionError(f"Unauthorized (HTTP 401). Invalid or expired token: {error_body}") from e
+                raise PermissionError(f"Unauthorized (HTTP 401). Invalid or expired credentials: {error_body}") from e
             elif e.code == 403:
-                raise PermissionError(f"Forbidden (HTTP 403). Device access denied or not owned by caller: {error_body}") from e
+                raise PermissionError(f"Forbidden (HTTP 403). Device access denied or cross-device impersonation: {error_body}") from e
             elif e.code == 404:
                 raise LookupError(f"Device not found or not owned by user (HTTP 404): {error_body}") from e
             elif e.code == 422:
@@ -96,20 +115,34 @@ class TraceXClient:
         except Exception as e:
             raise RuntimeError(f"Error sending telemetry to {url}: {e}") from e
 
-    def get_latest_location(self, device_id: int) -> Dict[str, Any]:
-        """Fetch latest location fix from GET /devices/{device_id}/latest-location."""
-        if not self.token:
-            raise PermissionError("Authentication token is required (HTTP 401).")
+    def send_sync_batch(
+        self,
+        device_id: int,
+        fixes: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Synchronize a batch of offline-buffered GPS fixes to POST /locations/sync."""
+        if not fixes:
+            return {"synced_count": 0, "duplicates_skipped": 0, "message": "No fixes in batch"}
 
-        url = f"{self.base_url}/devices/{device_id}/latest-location"
+        headers = self._get_auth_headers()
+        headers["Content-Type"] = "application/json"
+
+        url = f"{self.base_url}/locations/sync"
+        body = {
+            "device_id": device_id,
+            "fixes": fixes,
+        }
+
+        payload = json.dumps(body).encode("utf-8")
         req = urllib.request.Request(
             url,
-            headers={"Authorization": f"Bearer {self.token}"},
-            method="GET",
+            data=payload,
+            headers=headers,
+            method="POST",
         )
 
         try:
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=15) as resp:
                 return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as e:
             error_body = e.read().decode("utf-8", errors="replace")
@@ -118,9 +151,33 @@ class TraceXClient:
             elif e.code == 403:
                 raise PermissionError(f"Forbidden (HTTP 403): {error_body}") from e
             elif e.code == 404:
-                raise LookupError(f"Device or location not found (HTTP 404): {error_body}") from e
-            raise RuntimeError(f"Failed to fetch latest location (HTTP {e.code}): {error_body}") from e
+                raise LookupError(f"Device not found (HTTP 404): {error_body}") from e
+            elif e.code == 422:
+                raise ValueError(f"Validation error (HTTP 422): {error_body}") from e
+            else:
+                raise RuntimeError(f"Sync batch failed (HTTP {e.code}): {error_body}") from e
         except urllib.error.URLError as e:
             raise ConnectionError(f"Network error connecting to {url}: {e.reason}") from e
         except TimeoutError as e:
             raise TimeoutError(f"Request timed out connecting to {url}: {e}") from e
+        except Exception as e:
+            raise RuntimeError(f"Error syncing telemetry to {url}: {e}") from e
+
+    def get_latest_location(self, device_id: int) -> Dict[str, Any]:
+        """Fetch latest location fix from GET /devices/{device_id}/latest-location."""
+        headers = self._get_auth_headers()
+        url = f"{self.base_url}/devices/{device_id}/latest-location"
+        req = urllib.request.Request(
+            url,
+            headers=headers,
+            method="GET",
+        )
+
+        try:
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                return json.loads(resp.read().decode("utf-8"))
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"Error fetching latest location (HTTP {e.code}): {error_body}") from e
+        except Exception as e:
+            raise RuntimeError(f"Error contacting {url}: {e}") from e

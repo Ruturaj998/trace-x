@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+import os
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 
 from datetime import datetime, timezone, timedelta
@@ -22,6 +23,7 @@ from app.services.auth import (
 )
 from app.services.email import EmailService
 from app.services.password_reset import generate_reset_token, hash_token
+from app.services.csrf import generate_csrf_token, CSRF_COOKIE_NAME
 from app.services.rate_limiter import (
     login_limiter, 
     register_limiter, 
@@ -43,6 +45,7 @@ router = APIRouter(
 )
 def register(
     request: Request,
+    response: Response,
     user_data: RegisterRequest,
     db: Session = Depends(get_db)
 ):
@@ -71,6 +74,19 @@ def register(
     db.commit()
     db.refresh(new_user)
 
+    # Initialize a secure CSRF token cookie on registration
+    csrf_token = generate_csrf_token()
+    is_prod = os.getenv("ENVIRONMENT", "development").lower() == "production"
+    response.set_cookie(
+        key=CSRF_COOKIE_NAME,
+        value=csrf_token,
+        httponly=False,
+        secure=is_prod,
+        samesite="lax",
+        max_age=86400 * 7,
+        path="/",
+    )
+
     return new_user
 
 
@@ -80,6 +96,7 @@ def register(
 )
 def login(
     request: Request,
+    response: Response,
     login_data: LoginRequest,
     db: Session = Depends(get_db)
 ):
@@ -106,11 +123,65 @@ def login(
         )
 
     token = create_access_token(user.id)
+    csrf_token = generate_csrf_token()
+    is_prod = os.getenv("ENVIRONMENT", "development").lower() == "production"
+
+    # 1. HttpOnly access_token cookie (immune to XSS theft)
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=is_prod,
+        samesite="lax",
+        max_age=86400 * 7,
+        path="/",
+    )
+
+    # 2. Double-submit CSRF cookie (readable by front-end client)
+    response.set_cookie(
+        key=CSRF_COOKIE_NAME,
+        value=csrf_token,
+        httponly=False,
+        secure=is_prod,
+        samesite="lax",
+        max_age=86400 * 7,
+        path="/",
+    )
 
     return {
         "access_token": token,
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "csrf_token": csrf_token,
+        "user": user,
     }
+
+
+@router.post("/logout")
+def logout(response: Response):
+    """Log out user by clearing HttpOnly authentication and CSRF session cookies."""
+    response.delete_cookie(key="access_token", path="/", samesite="lax")
+    response.delete_cookie(key=CSRF_COOKIE_NAME, path="/", samesite="lax")
+    return {"message": "Logged out successfully"}
+
+
+@router.get("/csrf-token")
+def get_csrf_token(request: Request, response: Response):
+    """Retrieve or generate a CSRF token for browser-based API interactions."""
+    existing_token = request.cookies.get(CSRF_COOKIE_NAME)
+    token = existing_token or generate_csrf_token()
+    is_prod = os.getenv("ENVIRONMENT", "development").lower() == "production"
+
+    response.set_cookie(
+        key=CSRF_COOKIE_NAME,
+        value=token,
+        httponly=False,
+        secure=is_prod,
+        samesite="lax",
+        max_age=86400 * 7,
+        path="/",
+    )
+
+    return {"csrf_token": token}
 
 
 @router.get(
@@ -170,8 +241,11 @@ def reset_password(
     
     if not reset_entry or reset_entry.used:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
-        
-    if reset_entry.expires_at < datetime.now(timezone.utc):
+
+    expires_at = reset_entry.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
         
     user = db.query(User).filter(User.id == reset_entry.user_id).first()

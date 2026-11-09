@@ -1,0 +1,174 @@
+/* ==========================================================================
+   TRACE-X DESIGN SYSTEM — REUSABLE COMMON COMPONENT STYLES
+   Button variants, Status badges, Empty states, Modal & Confirm dialogs
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. BUTTON ENHANCEMENTS & GHOST VARIANT
+   -------------------------------------------------------------------------- */
+.ui-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2, 8px);
+  user-select: none;
+}
+
+.ui-button .btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-text-secondary, #a5afb9);
+  border: 1px solid transparent;
+  padding: 9px 16px;
+  border-radius: var(--radius-sm, 6px);
+  font-family: var(--font-mono, "DM Mono", monospace);
+  font-size: 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  transition: all var(--duration-fast, 0.15s) ease;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-primary, #e8edf2);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.btn-ghost:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 10px;
+}
+
+.btn-lg {
+  padding: 12px 24px;
+  font-size: 13px;
+}
+
+/* --------------------------------------------------------------------------
+   2. STATUS BADGE STYLES (WCAG 1.4.1 Compliant with readable text)
+   -------------------------------------------------------------------------- */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono, "DM Mono", monospace);
+  font-size: var(--font-size-2xs, 0.625rem);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: var(--radius-full, 9999px);
+  border: 1px solid var(--color-border-subtle, #151b22);
+  background: rgba(255, 255, 255, 0.02);
+  line-height: 1;
+  font-weight: var(--font-weight-medium, 500);
+}
+
+.status-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-badge__text {
+  line-height: 1;
+}
+
+/* Active / Nominal Device State */
+.status-badge--active {
+  color: var(--color-accent-lime, #d8ff3e);
+  border-color: rgba(216, 255, 62, 0.25);
+  background: rgba(216, 255, 62, 0.06);
+}
+
+.status-badge--active .status-badge__dot {
+  background: var(--color-accent-lime, #d8ff3e);
+  box-shadow: 0 0 6px rgba(216, 255, 62, 0.5);
+}
+
+/* Lost / Critical Breach Device State */
+.status-badge--lost {
+  color: var(--color-danger, #ff5c67);
+  border-color: rgba(255, 92, 103, 0.3);
+  background: rgba(255, 92, 103, 0.08);
+}
+
+.status-badge--lost .status-badge__dot {
+  background: var(--color-danger, #ff5c67);
+  box-shadow: 0 0 6px rgba(255, 92, 103, 0.5);
+}
+
+/* Disabled / Inactive Hardware State */
+.status-badge--disabled {
+  color: var(--color-text-muted, #818e9d);
+  border-color: var(--color-border-subtle, #151b22);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.status-badge--disabled .status-badge__dot {
+  background: var(--color-text-muted, #818e9d);
+}
+
+/* Unknown / Fallback State */
+.status-badge--unknown {
+  color: var(--color-text-secondary, #a5afb9);
+  border-color: var(--color-border-subtle, #151b22);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.status-badge--unknown .status-badge__dot {
+  background: var(--color-text-secondary, #a5afb9);
+}
+
+.status-badge--sm {
+  font-size: 8px;
+  padding: 2px 6px;
+  gap: 4px;
+}
+
+.status-badge--sm .status-badge__dot {
+  width: 4px;
+  height: 4px;
+}
+
+/* --------------------------------------------------------------------------
+   3. MODAL & CONFIRM DIALOG EXTENSIONS
+   -------------------------------------------------------------------------- */
+.modal-form-root {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  margin: 0;
+}
+
+.confirm-dialog-content {
+  padding: 4px 0 10px;
+}
+
+.confirm-dialog-description {
+  color: var(--color-text-secondary, #a5afb9);
+  font-size: var(--font-size-base, 14px);
+  line-height: var(--line-height-normal, 1.5);
+  margin: 0;
+}
+
+.empty-state-actions {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2, 8px);
+}

@@ -1,5 +1,4 @@
-"""
-Configuration module for the TRACE-X Edge Telemetry Agent.
+"""Configuration module for the TRACE-X Edge Telemetry Agent.
 Loads all device, networking, authentication, and GPS provider settings from environment variables.
 """
 
@@ -12,6 +11,7 @@ from typing import Optional
 class TelemetryConfig:
     api_url: str
     device_id: Optional[int]
+    device_token: Optional[str]
     token: Optional[str]
     email: Optional[str]
     password: Optional[str]
@@ -25,6 +25,7 @@ class TelemetryConfig:
     real_lon: Optional[float]
     real_acc: Optional[float]
     interval_seconds: int
+    queue_path: str
 
     @classmethod
     def from_env(cls) -> "TelemetryConfig":
@@ -40,9 +41,12 @@ class TelemetryConfig:
         raw_acc = os.getenv("REAL_ACCURACY")
         real_acc = float(raw_acc) if raw_acc else None
 
+        default_queue = os.path.expanduser("~/.tracex_telemetry_queue.json")
+
         return cls(
             api_url=os.getenv("TRACEX_API_URL", "http://127.0.0.1:8000").rstrip("/"),
             device_id=device_id,
+            device_token=os.getenv("TRACEX_DEVICE_TOKEN"),
             token=os.getenv("TRACEX_API_TOKEN"),
             email=os.getenv("TRACEX_EMAIL"),
             password=os.getenv("TRACEX_PASSWORD"),
@@ -56,4 +60,5 @@ class TelemetryConfig:
             real_lon=real_lon,
             real_acc=real_acc,
             interval_seconds=int(os.getenv("TELEMETRY_INTERVAL", "10")),
+            queue_path=os.getenv("TRACEX_QUEUE_PATH", default_queue),
         )
