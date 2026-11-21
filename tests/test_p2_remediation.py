@@ -241,7 +241,9 @@ def test_real_online_offline_detection():
 # ==============================================================================
 
 
-def test_offline_buffering_and_batch_sync():
+def test_offline_buffering_and_batch_sync(tmp_path):
+    from telemetry_agent.agent import sync_offline_buffer
+
     user = create_user()
     headers = {"Authorization": f"Bearer {user['token']}"}
 
@@ -262,6 +264,14 @@ def test_offline_buffering_and_batch_sync():
         {"latitude": 34.0523, "longitude": -118.2438, "accuracy": 3.2, "recorded_at": "2026-11-09T05:01:00Z", "idempotency_key": idemp2},
         {"latitude": 34.0524, "longitude": -118.2439, "accuracy": 2.9, "recorded_at": "2026-11-09T05:02:00Z", "idempotency_key": idemp3},
     ]
+
+    newest = client.post(
+        "/locations",
+        headers={"X-Device-Token": token},
+        json={"device_id": device_id, "latitude": 35, "longitude": -118,
+              "recorded_at": "2026-11-09T05:03:00Z"},
+    )
+    assert newest.status_code == 200
 
     # 1. Sync batch with device token
     sync_resp = client.post(
@@ -285,29 +295,78 @@ def test_offline_buffering_and_batch_sync():
     assert resync_data["synced_count"] == 0
     assert resync_data["duplicates_skipped"] == 3
 
-    # Verify total locations in DB is exactly 3
+    queue = OfflineTelemetryQueue(str(tmp_path / "queue.json"))
+    for fix in batch_fixes:
+        queue.enqueue(fix)
+
+    class ReplayClient:
+        def send_sync_batch(self, device_id, fixes):
+            if self.response is None:
+                raise ConnectionError("API unavailable")
+            return self.response
+
+    replay_client = ReplayClient()
+    replay_client.response = None
+    sync_offline_buffer(replay_client, device_id, queue)
+    assert queue.size() == 3
+    replay_client.response = {"synced_count": 0, "duplicates_skipped": 1}
+    sync_offline_buffer(replay_client, device_id, queue)
+    assert queue.size() == 3
+    replay_client.response = resync_data
+    sync_offline_buffer(replay_client, device_id, queue)
+    assert queue.size() == 0
+
+    # Replaying old fixes must not move the latest map marker backwards.
     locs_resp = client.get(f"/devices/{device_id}/locations", headers=headers)
     assert locs_resp.status_code == 200
-    assert len(locs_resp.json()) == 3
+    assert [loc["latitude"] for loc in locs_resp.json()] == [35, 34.0524, 34.0523, 34.0522]
+    latest = client.get(f"/devices/{device_id}/latest-location", headers=headers)
+    assert latest.json()["id"] == newest.json()["id"]
+    dashboard = client.get("/dashboard/latest-location", headers=headers)
+    assert dashboard.json()["latitude"] == 35
+
+
+def assert_queue_private(path):
+    if os.name != "nt":
+        assert stat.S_IMODE(os.stat(path).st_mode) == 0o600
+        return
+    # Windows reports only the readonly bit via stat. Check the effective
+    # allow entries inherited from the private temporary directory instead.
+    import subprocess
+    acl_check = """
+        $sid = [System.Security.Principal.SecurityIdentifier]
+        $user = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        $trusted = @($user, 'S-1-5-18', 'S-1-5-32-544')
+        $ErrorActionPreference = 'Stop'
+        $acl = [System.IO.File]::GetAccessControl($env:TRACEX_TEST_QUEUE)
+        if ($acl.GetOwner($sid).Value -notin $trusted) { exit 1 }
+        $trusted += 'S-1-3-4'  # OWNER RIGHTS, resolved against the verified owner.
+        $allowed = @($acl.GetAccessRules($true, $true, $sid) |
+            Where-Object AccessControlType -eq Allow |
+            ForEach-Object { $_.IdentityReference.Value })
+        if (-not $allowed.Count -or @($allowed | Where-Object { $_ -notin $trusted }).Count) {
+            exit 1
+        }
+    """
+    subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", acl_check],
+                   env={**os.environ, "TRACEX_TEST_QUEUE": path}, check=True)
 
 
 def test_offline_queue_file_permissions():
-    """Verify offline file queue strictly sets 0600 user-read/write permissions."""
+    """Check privacy on the host filesystem before and after atomic replacement."""
     with tempfile.TemporaryDirectory() as tmp_dir:
         q_path = os.path.join(tmp_dir, "test_queue.json")
         queue = OfflineTelemetryQueue(q_path)
 
         # Check permissions
-        mode = stat.S_IMODE(os.stat(q_path).st_mode)
-        assert mode == 0o600, f"Expected 0600 permissions, got {oct(mode)}"
+        assert_queue_private(q_path)
 
         # Enqueue item
         queue.enqueue({"lat": 1.0, "lon": 2.0, "key": "abc"})
         assert queue.size() == 1
 
         # Mode remains 0600 after writing
-        mode2 = stat.S_IMODE(os.stat(q_path).st_mode)
-        assert mode2 == 0o600
+        assert_queue_private(q_path)
 
         # Peek & Drain
         items = queue.peek(10)

@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from starlette._utils import get_route_path
 
 from app.database.dependencies import get_db
 from app.services.csrf import CSRF_COOKIE_NAME, CSRF_HEADER_NAME
@@ -18,12 +19,17 @@ from app.routes.auth import router as auth_router
 from app.routes.dashboard import router as dashboard_router
 from app.routes.contact import router as contact_router
 
-app = FastAPI(title="TRACE-X API", version="1.0.0")
+app = FastAPI(
+    title="TRACE-X API", version="1.0.0", root_path=os.getenv("API_ROOT_PATH", "")
+)
 
 is_production = os.getenv("ENVIRONMENT", "development").lower() == "production"
 default_cors = "" if is_production else "http://localhost:5173,http://127.0.0.1:5173"
 raw_cors = os.getenv("CORS_ORIGINS", default_cors)
 cors_origins = [origin.strip() for origin in raw_cors.split(",") if origin.strip()]
+
+if "*" in cors_origins:
+    raise RuntimeError("CORS_ORIGINS must list explicit origins")
 
 if cors_origins:
     app.add_middleware(
@@ -39,7 +45,7 @@ if cors_origins:
 async def csrf_protection_middleware(request, call_next):
     """Enforce CSRF protection on state-changing methods for cookie-authenticated browser requests."""
     if request.method in ("POST", "PUT", "PATCH", "DELETE"):
-        path = request.url.path
+        path = get_route_path(request.scope)
         # Public or exempt endpoints
         exempt_prefixes = (
             "/auth/login",
@@ -50,14 +56,20 @@ async def csrf_protection_middleware(request, call_next):
             "/contact",
             "/health",
         )
-        if not any(path.startswith(prefix) for prefix in exempt_prefixes):
+        if path not in exempt_prefixes:
             # Only enforce CSRF if request uses ambient browser cookie session and NOT an explicit Authorization header or edge device token
-            has_auth_header = request.headers.get("Authorization", "").startswith("Bearer ")
-            has_device_token = bool(request.headers.get("X-Device-Token"))
+            scheme, _, credential = request.headers.get("Authorization", "").partition(" ")
+            has_auth_header = scheme.lower() == "bearer" and bool(credential.strip())
+            has_device_token = (
+                path in ("/locations", "/locations/sync")
+                and bool(request.headers.get("X-Device-Token"))
+            )
             if request.cookies.get("access_token") and not has_auth_header and not has_device_token:
                 cookie_csrf = request.cookies.get(CSRF_COOKIE_NAME)
                 header_csrf = request.headers.get(CSRF_HEADER_NAME) or request.headers.get("x-csrf-token")
-                if not cookie_csrf or not header_csrf or not hmac.compare_digest(cookie_csrf, header_csrf):
+                if not cookie_csrf or not header_csrf or not hmac.compare_digest(
+                    cookie_csrf.encode(), header_csrf.encode()
+                ):
                     return JSONResponse(
                         status_code=403,
                         content={"detail": "CSRF validation failed: Missing or invalid CSRF token"},
@@ -68,7 +80,7 @@ async def csrf_protection_middleware(request, call_next):
 @app.middleware("http")
 async def add_security_and_cache_headers(request, call_next):
     response = await call_next(request)
-    path = request.url.path
+    path = get_route_path(request.scope)
 
     # Standard security headers
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -110,11 +122,12 @@ def health_check(
     db: Session = Depends(get_db),
 ):
     try:
-        # Fast query with strict 5-second timeout to prevent connection hangs
-        db.execute(text("SELECT 1").execution_options(timeout=5))
+        if db.get_bind().dialect.name == "postgresql":
+            db.execute(text("SET LOCAL statement_timeout = '5s'"))
+        db.execute(text("SELECT 1"))
         db_status = "connected"
-    except Exception as e:
-        logger.warning(f"Database health check probe failed: {e}")
+    except Exception:
+        logger.warning("Database health check probe failed")
         db_status = "disconnected"
 
     if db_status != "connected":

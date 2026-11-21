@@ -78,7 +78,7 @@ export default function PrivacyPolicy() {
               <tbody>
                 <tr>
                   <td><strong>Account Credentials</strong></td>
-                  <td>User Full Name, Email Address, Cryptographic Password Hash (bcrypt)</td>
+                  <td>User full name, email address, Argon2 password hash</td>
                   <td>User authentication, account recovery, and tenant authorization.</td>
                 </tr>
                 <tr>
@@ -179,7 +179,7 @@ export default function PrivacyPolicy() {
             </h2>
             <p>We implement defense-in-depth protections across our architecture:</p>
             <ul>
-              <li><strong>Password Hashing:</strong> Passwords are cryptographically hashed using standard one-way derivation algorithms (bcrypt / argon2) with unique salts.</li>
+              <li><strong>Password hashing.</strong> TRACE-X stores salted Argon2 password hashes.</li>
               <li><strong>Token-Based Authentication:</strong> Sessions utilize cryptographically signed JSON Web Tokens (JWT) using HMAC-SHA256 with 60-minute expirations.</li>
               <li><strong>Multi-Tier Rate Limiting:</strong> Endpoints are protected against automated brute-force attacks by sliding-window rate limiters.</li>
               <li><strong>Encryption in Transit:</strong> All communications between clients, the telemetry agent, and the API server are routed over HTTPS (TLS 1.2 / TLS 1.3).</li>

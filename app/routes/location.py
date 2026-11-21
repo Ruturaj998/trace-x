@@ -166,7 +166,7 @@ def get_device_locations(
     locations = (
         db.query(Location)
         .filter(Location.device_id == device_id)
-        .order_by(Location.timestamp.desc())
+        .order_by(Location.captured_at.desc(), Location.id.desc())
         .all()
     )
 
@@ -200,7 +200,7 @@ def get_latest_location(
     location = (
         db.query(Location)
         .filter(Location.device_id == device_id)
-        .order_by(Location.timestamp.desc())
+        .order_by(Location.captured_at.desc(), Location.id.desc())
         .first()
     )
 

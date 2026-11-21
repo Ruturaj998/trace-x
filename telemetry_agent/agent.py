@@ -56,8 +56,14 @@ def sync_offline_buffer(client: TraceXClient, device_id: int, queue: OfflineTele
             break
         try:
             resp = client.send_sync_batch(device_id=device_id, fixes=batch)
-            synced = resp.get("synced_count", len(batch))
-            skipped = resp.get("duplicates_skipped", 0)
+            synced = resp.get("synced_count")
+            skipped = resp.get("duplicates_skipped")
+            if (
+                type(synced) is not int or synced < 0
+                or type(skipped) is not int or skipped < 0
+                or synced + skipped != len(batch)
+            ):
+                raise ValueError("Server did not acknowledge the entire telemetry batch")
             print(f"  -> Batch synchronized: {synced} synced, {skipped} duplicate(s) skipped.")
             queue.drain(len(batch))
         except Exception as e:

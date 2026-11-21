@@ -5122,6 +5122,18 @@ a:focus-visible,
   font-size: 12px;
 }
 
+@media (max-width: 600px) {
+  .privacy-card {
+    padding: 16px;
+    overflow-wrap: anywhere;
+  }
+
+  .privacy-card .privacy-data-table th,
+  .privacy-card .privacy-data-table td {
+    padding: 8px 6px;
+  }
+}
+
 .privacy-data-table th,
 .privacy-data-table td {
   padding: 10px 14px;

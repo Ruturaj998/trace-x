@@ -9,7 +9,8 @@ export default function ResetPassword() {
   const navigate = useNavigate();
   const toast = useToast();
   const [searchParams] = useSearchParams();
-  const token = searchParams.get("token");
+  const fragment = new URLSearchParams(window.location.hash.slice(1));
+  const token = fragment.get("token") ?? searchParams.get("token");
 
   const [password, setPassword] = useState("");
   const [submitError, setSubmitError] = useState("");

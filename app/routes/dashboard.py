@@ -52,7 +52,7 @@ def get_dashboard_latest_location(
         db.query(Location, Device)
         .join(Device, Location.device_id == Device.id)
         .filter(Device.user_id == current_user.id)
-        .order_by(Location.timestamp.desc())
+        .order_by(Location.captured_at.desc(), Location.id.desc())
         .first()
     )
 
@@ -80,7 +80,8 @@ def get_dashboard_latest_location(
         "latitude": location.latitude,
         "longitude": location.longitude,
         "accuracy": location.accuracy,
-        "timestamp": location.timestamp
+        "timestamp": location.timestamp,
+        "recorded_at": location.recorded_at,
     }
 @router.get("/recent-activity")
 def get_recent_activity(

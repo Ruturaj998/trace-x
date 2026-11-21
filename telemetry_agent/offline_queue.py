@@ -1,6 +1,7 @@
 import json
 import os
 import stat
+import tempfile
 from typing import Any, Dict, List
 
 
@@ -8,7 +9,7 @@ class OfflineTelemetryQueue:
     """Persistent, file-based store-and-forward queue for edge telemetry buffering.
 
     Security:
-    - Enforces strict 0600 file permissions (user-read/write only).
+    - Enforces 0600 permissions on POSIX. On Windows, the directory's ACL applies.
     - Never stores user credentials or passwords.
     - Idempotency keys are assigned to each queued record.
     """
@@ -23,23 +24,29 @@ class OfflineTelemetryQueue:
             os.makedirs(parent, mode=0o700, exist_ok=True)
 
         if not os.path.exists(self.file_path):
-            with open(self.file_path, "w", encoding="utf-8") as f:
-                json.dump([], f)
-            # Enforce 0600 permissions
-            os.chmod(self.file_path, stat.S_IRUSR | stat.S_IWUSR)
+            self._write_all([])
+        os.chmod(self.file_path, stat.S_IRUSR | stat.S_IWUSR)
 
     def _read_all(self) -> List[Dict[str, Any]]:
-        try:
-            with open(self.file_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                return data if isinstance(data, list) else []
-        except Exception:
-            return []
+        with open(self.file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, list) or any(not isinstance(item, dict) for item in data):
+            raise ValueError("Offline telemetry queue must contain an array of fix objects")
+        return data
 
     def _write_all(self, items: List[Dict[str, Any]]):
-        with open(self.file_path, "w", encoding="utf-8") as f:
-            json.dump(items, f, indent=2)
-        os.chmod(self.file_path, stat.S_IRUSR | stat.S_IWUSR)
+        fd, temporary_path = tempfile.mkstemp(
+            dir=os.path.dirname(self.file_path), prefix=os.path.basename(self.file_path) + "."
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(items, f, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temporary_path, self.file_path)
+        finally:
+            if os.path.exists(temporary_path):
+                os.unlink(temporary_path)
 
     def enqueue(self, item: Dict[str, Any]):
         """Append a validated fix record to the offline queue."""

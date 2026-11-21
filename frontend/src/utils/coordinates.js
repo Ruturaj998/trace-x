@@ -71,6 +71,10 @@ export function isValidLocation(location) {
   return validateCoordinates(rawLat, rawLng).valid;
 }
 
+export function getLocationTimestamp(location) {
+  return location.recorded_at ?? location.timestamp;
+}
+
 /**
  * Extracts a validated [lat, lng] tuple from an object, or null if coordinates are invalid.
  *

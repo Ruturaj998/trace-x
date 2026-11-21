@@ -74,7 +74,14 @@ def get_current_device(
         )
 
     token_hash = hash_device_token(raw_token)
-    device = db.query(Device).filter(Device.device_token_hash == token_hash).first()
+    # Serialize telemetry writes for a device before either endpoint checks for
+    # duplicate keys. PostgreSQL releases the lock with the request transaction.
+    device = (
+        db.query(Device)
+        .filter(Device.device_token_hash == token_hash)
+        .with_for_update()
+        .first()
+    )
 
     if not device:
         raise HTTPException(
@@ -114,6 +121,7 @@ class TelemetryCaller:
                     Device.id == target_device_id,
                     Device.user_id == self.user.id,
                 )
+                .with_for_update()
                 .first()
             )
             if not device:

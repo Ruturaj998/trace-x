@@ -35,16 +35,22 @@ export const getCsrfToken = async () => {
   }
 };
 
-export const getToken = () => {
-  return localStorage.getItem("tracex_token");
-};
+const SESSION_MARKER = "authenticated";
+const SESSION_KEY = "tracex_session";
+const LEGACY_TOKEN_KEY = "tracex_token";
 
-export const setToken = (token) => {
-  localStorage.setItem("tracex_token", token);
+export const getToken = () => {
+  // Browser API calls already authenticate with the HttpOnly cookie.
+  if (localStorage.getItem(LEGACY_TOKEN_KEY) !== null) {
+    localStorage.setItem(SESSION_KEY, SESSION_MARKER);
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
+  }
+  return localStorage.getItem(SESSION_KEY);
 };
 
 export const removeToken = () => {
-  localStorage.removeItem("tracex_token");
+  localStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(LEGACY_TOKEN_KEY);
   cachedCsrfToken = null;
   clearTopbarCache();
 };
@@ -72,7 +78,8 @@ export const loginUser = async (email, password) => {
   if (data.csrf_token) {
     cachedCsrfToken = data.csrf_token;
   }
-  setToken(data.access_token || "authenticated");
+  localStorage.setItem(SESSION_KEY, SESSION_MARKER);
+  localStorage.removeItem(LEGACY_TOKEN_KEY);
 
   return data;
 };

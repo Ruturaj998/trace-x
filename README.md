@@ -1,6 +1,6 @@
 # TRACE-X: Stolen Device Tracking & Telemetry Intelligence Platform
 
-TRACE-X is a high-assurance, real-time stolen-device tracking and asset recovery platform. Built with FastAPI, PostgreSQL, and React + Vite, TRACE-X provides command-and-control visibility over hardware assets, real-time GPS telemetry ingestion, satellite mapping, breadcrumb audit trails, and instantaneous security status state-machine transitions.
+TRACE-X tracks registered devices that send location data. FastAPI and PostgreSQL store telemetry and status history. A React dashboard polls the API and displays the latest reported position and previous fixes on a Leaflet map.
 
 ---
 
@@ -69,8 +69,8 @@ TRACE-X gives individuals and security teams total command over lost or stolen d
 ## 3. Local Development
 
 ### Prerequisites
-* Python 3.10+
-* Node.js 18+ and npm
+* Python 3.14 for the tested dependency set
+* Node.js 24 LTS and npm
 * PostgreSQL 14+
 * Git
 
@@ -96,6 +96,16 @@ trace-x/
 
 ## 4. Backend Setup
 
+On Windows, run these commands from the repository root in PowerShell:
+
+```powershell
+py -3.14 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+Copy-Item .env.example .env
+```
+
+Edit the local `.env` with your PostgreSQL URL and a generated signing key. Follow [Database bootstrap](docs/DATABASE_BOOTSTRAP.md), then start the API with `.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000`.
+
 1. **Create and Activate Virtual Environment**:
    ```bash
    python3 -m venv .venv
@@ -104,7 +114,7 @@ trace-x/
 
 2. **Install Dependencies**:
    ```bash
-   pip install fastapi uvicorn[standard] sqlalchemy psycopg pydantic python-jose passlib[bcrypt] python-dotenv
+   python -m pip install -r requirements.txt
    ```
 
 3. **Configure Environment Variables**:
@@ -113,10 +123,15 @@ trace-x/
    cp .env.example .env
    ```
 
-4. **Run Database Migrations / Initialize Tables**:
-   Tables are automatically initialized on startup via SQLAlchemy metadata:
+4. **Initialize or upgrade the database**:
+   For a fresh database, create the tables once:
    ```bash
-   python -c "from app.database.connection import engine; from app.database.base import Base; import app.models; Base.metadata.create_all(bind=engine)"
+   python -m app.database.init_db
+   ```
+   For an existing database, take a backup and apply the versioned upgrades. Run the upgrade command on a fresh database after initialization as well to record the migration versions:
+   ```bash
+   python -m app.database.migrations.run_migrations up
+   python -m app.database.migrations.run_migrations status
    ```
 
 5. **Start Local Development Server**:
@@ -165,7 +180,7 @@ trace-x/
 
 2. **Install Dependencies**:
    ```bash
-   npm install
+   npm ci
    ```
 
 3. **Configure Frontend Environment**:
@@ -178,7 +193,7 @@ trace-x/
    ```bash
    npm run dev
    ```
-   Console: [http://localhost:5173](http://localhost:5173)
+   Open [http://127.0.0.1:5173](http://127.0.0.1:5173) so browser cookies use the same host as the default API URL. On Windows use `Copy-Item .env.example .env` and `npm.cmd` if PowerShell blocks the npm script shim.
 
 5. **Run Linter and Production Build**:
    ```bash
@@ -194,6 +209,8 @@ trace-x/
 | Variable | Description | Example Placeholder |
 |---|---|---|
 | `DATABASE_URL` | PostgreSQL connection URL with psycopg driver | `postgresql+psycopg://user:pass@localhost:5432/trace_x` |
+| `DB_SSLMODE` | Optional PostgreSQL TLS policy override | `verify-full` |
+| `DB_TRANSACTION_POOLER` | Disable psycopg automatic prepared statements for a transaction pooler | `true` |
 | `SECRET_KEY` | High-entropy secret for signing JWT tokens | `openssl rand -hex 32` |
 | `ALGORITHM` | JWT signing algorithm | `HS256` |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | Session validity duration | `60` |
@@ -211,9 +228,10 @@ trace-x/
 ## 8. Authentication
 
 TRACE-X uses stateless JSON Web Token (JWT) authentication:
-* **Registration**: `POST /auth/register` creates a user with bcrypt-hashed password.
+* **Registration**: `POST /auth/register` creates a user with an Argon2-hashed password.
 * **Login**: `POST /auth/login` verifies credentials and issues a signed JWT token.
 * **Token Transmission**: Clients provide `Authorization: Bearer <token>` in the HTTP headers.
+* **Browser session**: The frontend sends the HttpOnly cookie and includes the CSRF header on protected writes. Browser storage holds a sign-in marker. Use a single origin in hosted deployments.
 * **Identity Verification**: Protected routes use the `get_current_user` dependency, extracting the subject identity and validating the token signature.
 
 ---
@@ -229,18 +247,18 @@ Devices are registered under the authenticated user's account:
   }
   ```
 * **Device Ownership**: Every device record references `user_id`. Non-owners cannot view, update, delete, or submit telemetry for another user's device.
-* **Status Controls**: Update status (`active`, `lost`, `disabled`) via `PUT /devices/{id}/status`. State transitions are recorded in `device_status_history`.
+* **Status Controls**: Update status (`active`, `lost`, `disabled`) via `PATCH /devices/{id}/status`. State transitions are recorded in `device_status_history`.
 
 ---
 
 ## 10. GPS Telemetry API
 
 ### Endpoint: `POST /locations`
-Ingests genuine GPS fixes transmitted by external devices or agents.
+Ingests genuine GPS fixes transmitted by external devices or agents. Use a device token created in Device Details → Telemetry Credentials. Account JWTs are also supported. The agent sends `recorded_at` to preserve capture time and an `idempotency_key` to make retries safe. Queued fixes are submitted through `POST /locations/sync`.
 
 **Headers**:
 ```http
-Authorization: Bearer <JWT_ACCESS_TOKEN>
+X-Device-Token: <DEVICE_TOKEN>
 Content-Type: application/json
 ```
 
@@ -306,6 +324,8 @@ TRACE-X features an interactive mapping engine powered by Leaflet:
 
 ## 13. Production Deployment Architecture
 
+For a demo without a VPS or Nginx, see [Managed demo deployment](docs/DEMO_DEPLOYMENT.md).
+
 In production, TRACE-X uses a multi-tier architecture:
 1. **Public Internet**: Clients connect over encrypted HTTPS (port 443).
 2. **Nginx Reverse Proxy**: Terminates TLS/SSL, serves compiled static frontend assets (`dist/`), and proxies API calls to internal localhost.
@@ -319,10 +339,12 @@ In production, TRACE-X uses a multi-tier architecture:
 A complete production template is provided in `deploy/nginx/tracex.conf`:
 * Enforces HTTP -> HTTPS 301 redirection.
 * Forwards `Host`, `X-Real-IP`, `X-Forwarded-For`, and `X-Forwarded-Proto` headers.
-* Sets WebSocket upgrade headers for real-time telemetry streaming.
+* Serves frontend pages and proxies `/api/` to FastAPI. The dashboard refreshes by polling.
 * Restricts backend access so internal port 8000 is never exposed publicly.
 
 ### Deployment Commands
+Provision the HTTPS certificate before enabling the TLS template. Set `VITE_API_BASE_URL=/api` for the frontend build and `API_ROOT_PATH=/api` for the backend process. Set `TRACEX_API_URL=https://your-domain.example.com/api` on the edge agent.
+
 ```bash
 sudo cp deploy/nginx/tracex.conf /etc/nginx/sites-available/tracex.conf
 sudo ln -s /etc/nginx/sites-available/tracex.conf /etc/nginx/sites-enabled/
@@ -341,13 +363,12 @@ Production deployments should use trusted SSL certificates from Let's Encrypt:
    sudo apt install -y certbot python3-certbot-nginx
    ```
 
-2. **Obtain and Install Certificate**:
+2. **Obtain the certificate** after pointing DNS at the server. For a new host with port 80 free:
    ```bash
-   sudo certbot --nginx -d your-domain.example.com
+   sudo certbot certonly --standalone -d your-domain.example.com
    ```
 
-3. **Automated Renewal Verification**:
-   Certbot configures a systemd timer for automatic renewals:
+3. **Configure renewal** after enabling Nginx. Configure Certbot to use the webroot at `/var/www/certbot` for renewal, and reload Nginx after successful renewals. Verify the configuration:
    ```bash
    sudo certbot renew --dry-run
    ```
@@ -388,15 +409,22 @@ WantedBy=multi-user.target
 ### Running Automated Backend Tests
 TRACE-X includes test suites covering authentication, device management, ownership checks, and location validation:
 ```bash
-pytest -v
+python -m pip install -r requirements-dev.txt
+SECRET_KEY=local-test-signing-key-at-least-32-bytes python -m pytest -v
 ```
+Set `TEST_DATABASE_URL` to a disposable PostgreSQL database to exercise PostgreSQL behavior and the legacy schema migration test. The suite creates and drops test tables. With no test URL, the suite uses in-memory SQLite.
 
 ### Running Frontend Verification
 ```bash
 cd frontend
+npm test
 npm run lint   # Verifies 0 errors and 0 warnings
 npm run build  # Verifies clean production bundling
 ```
+
+### Production smoke checks
+
+After deploying, confirm the HTTP URL redirects to HTTPS. Check that `/api/health` returns HTTP 200 with database status `connected`, `/api/docs` loads, and browser navigation to `/dashboard` serves the frontend. Sign in with a test account, verify device and location views, and follow the [physical receiver checklist](telemetry_agent/README.md#4-verify-buffering-and-replay-with-a-physical-receiver).
 
 ---
 
@@ -404,6 +432,6 @@ npm run build  # Verifies clean production bundling
 
 * **No Hardcoded Secrets**: All passwords, database URLs, and JWT secrets are loaded via environment variables.
 * **Strict Least Privilege**: Non-root service users should run Gunicorn and Nginx.
-* **Timing Attack Mitigation**: Passwords verified via bcrypt with constant-time comparisons.
+* **Password hashing**: Passwords are stored and verified using Argon2.
 * **CSRF & CORS Defense**: CORS origins are restricted to configured domains; wildcards (`*`) are disallowed with authenticated credentials.
 * **Input Sanitization**: Pydantic models validate all incoming requests, enforcing strict coordinate and identifier bounds.

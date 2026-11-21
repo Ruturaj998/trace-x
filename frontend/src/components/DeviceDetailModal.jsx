@@ -22,7 +22,7 @@ import {
   revokeDeviceToken,
 } from "../services/api";
 import { useToast } from "../context/useToast";
-import { isValidLocation } from "../utils/coordinates";
+import { getLocationTimestamp, isValidLocation } from "../utils/coordinates";
 import { ConfirmDialog } from "./common/ConfirmDialog";
 import { Button } from "./common/Button";
 import { StatusBadge } from "./common/StatusBadge";
@@ -300,9 +300,9 @@ export default function DeviceDetailModal({
                     <span>Timestamp</span>
                   </div>
                   <strong>
-                    {latestLocation.timestamp &&
-                    !isNaN(new Date(latestLocation.timestamp).getTime())
-                      ? new Date(latestLocation.timestamp).toLocaleString()
+                    {getLocationTimestamp(latestLocation) &&
+                    !isNaN(Date.parse(getLocationTimestamp(latestLocation)))
+                      ? new Date(getLocationTimestamp(latestLocation)).toLocaleString()
                       : "N/A"}
                   </strong>
                 </div>

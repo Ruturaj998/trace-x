@@ -38,8 +38,8 @@ import {
 } from "./services/api";
 
 import { isValidLocation } from "./utils/coordinates";
-import { ToastProvider } from "./context/ToastContext";
-import { NavProvider } from "./context/NavContext";
+import { ToastProvider } from "./context/ToastContext.jsx";
+import { NavProvider } from "./context/NavContext.jsx";
 import { initGA, trackPageView } from "./utils/analytics";
 import PageMeta from "./components/PageMeta";
 import "./App.css";
@@ -352,6 +352,7 @@ function App() {
       <ToastProvider>
         <NavProvider>
           <Routes>
+          <Route path="/dashboard" element={<Navigate to="/" replace />} />
 
           <Route
             path="/login"

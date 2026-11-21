@@ -49,7 +49,7 @@ def register(
     user_data: RegisterRequest,
     db: Session = Depends(get_db)
 ):
-    register_limiter.check(request, "register")
+    register_limiter.check(request, "register", db)
     existing_user = (
         db.query(User)
         .filter(User.email == user_data.email)
@@ -100,7 +100,7 @@ def login(
     login_data: LoginRequest,
     db: Session = Depends(get_db)
 ):
-    login_limiter.check(request, "login")
+    login_limiter.check(request, "login", db)
     user = (
         db.query(User)
         .filter(User.email == login_data.email)
@@ -126,7 +126,7 @@ def login(
     csrf_token = generate_csrf_token()
     is_prod = os.getenv("ENVIRONMENT", "development").lower() == "production"
 
-    # 1. HttpOnly access_token cookie (immune to XSS theft)
+    # 1. HttpOnly cookie keeps the session credential out of JavaScript storage.
     response.set_cookie(
         key="access_token",
         value=token,
@@ -204,7 +204,7 @@ def forgot_password(
     payload: ForgotPasswordRequest,
     db: Session = Depends(get_db)
 ):
-    forgot_password_limiter.check(request, "forgot_password")
+    forgot_password_limiter.check(request, "forgot_password", db)
 
     user = db.query(User).filter(User.email == payload.email).first()
     if user:
@@ -233,13 +233,14 @@ def reset_password(
     payload: ResetPasswordRequest,
     db: Session = Depends(get_db)
 ):
-    reset_password_limiter.check(request, "reset_password")
+    reset_password_limiter.check(request, "reset_password", db)
 
     hashed = hash_token(payload.token)
 
     reset_entry = (
         db.query(PasswordResetToken)
         .filter(PasswordResetToken.token == hashed)
+        .with_for_update()
         .first()
     )
 
@@ -271,7 +272,7 @@ def change_password(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    change_password_limiter.check(request, "change_password")
+    change_password_limiter.check(request, "change_password", db)
 
     if not current_user.password_hash or not verify_password(payload.current_password, current_user.password_hash):
         raise HTTPException(status_code=400, detail="Incorrect current password")

@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, event
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -37,8 +37,21 @@ else:
     if not DATABASE_URL:
         raise RuntimeError("DATABASE_URL environment variable is not set")
 
+    url = make_url(DATABASE_URL)
+    if url.drivername in ("postgres", "postgresql"):
+        url = url.set(drivername="postgresql+psycopg")
+
+    connect_args = {}
+    if url.drivername == "postgresql+psycopg":
+        sslmode = os.getenv("DB_SSLMODE")
+        if sslmode:
+            connect_args["sslmode"] = sslmode
+        if os.getenv("DB_TRANSACTION_POOLER", "").lower() in ("true", "1"):
+            connect_args["prepare_threshold"] = None
+
     engine = create_engine(
-        DATABASE_URL,
+        url,
+        connect_args=connect_args,
         pool_size=int(os.getenv("DB_POOL_SIZE", "10")),
         max_overflow=int(os.getenv("DB_MAX_OVERFLOW", "20")),
         pool_recycle=int(os.getenv("DB_POOL_RECYCLE", "1800")),

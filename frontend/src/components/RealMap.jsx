@@ -16,6 +16,7 @@ import {
   isValidLocation,
   extractLatLng,
   filterValidLocations,
+  getLocationTimestamp,
 } from "../utils/coordinates";
 import MapErrorBoundary from "./MapErrorBoundary";
 
@@ -95,8 +96,8 @@ function RealMapInner({ location, locations = [], recenterSignal }) {
   // Safely extract valid historical breadcrumbs in strict chronological order for the trail
   const validHistory = filterValidLocations(locations);
   const chronologicalHistory = [...validHistory].sort((a, b) => {
-    const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-    const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+    const timeA = Date.parse(getLocationTimestamp(a)) || 0;
+    const timeB = Date.parse(getLocationTimestamp(b)) || 0;
     return timeA - timeB;
   });
   const polylineCoords = chronologicalHistory.map((loc) => [loc.lat, loc.lng]);
@@ -165,7 +166,7 @@ function RealMapInner({ location, locations = [], recenterSignal }) {
           <Popup>
             <strong>Location History #{validHistory.length - idx - 1}</strong>
             <br />
-            {hist.timestamp ? new Date(hist.timestamp).toLocaleString() : ""}
+            {getLocationTimestamp(hist) ? new Date(getLocationTimestamp(hist)).toLocaleString() : ""}
             <br />
             Accuracy:{" "}
             {hist.accuracy !== null && hist.accuracy !== undefined
@@ -185,10 +186,10 @@ function RealMapInner({ location, locations = [], recenterSignal }) {
           Accuracy: {displayAccuracy}
           <br />
           {primaryPosition[0].toFixed(4)}° N, {primaryPosition[1].toFixed(4)}° E
-          {activeLocation.timestamp && (
+          {getLocationTimestamp(activeLocation) && (
             <>
               <br />
-              <small>{new Date(activeLocation.timestamp).toLocaleString()}</small>
+              <small>{new Date(getLocationTimestamp(activeLocation)).toLocaleString()}</small>
             </>
           )}
         </Popup>

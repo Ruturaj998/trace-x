@@ -1,6 +1,7 @@
 import logging
 import os
 import smtplib
+import ssl
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -15,11 +16,10 @@ class EmailService:
         In development / local mode, logs the reset link and token.
         When SMTP environment variables are configured, dispatches via SMTP.
         """
-        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173").rstrip("/")
-        reset_link = f"{frontend_url}/reset-password?token={token}"
+        frontend_url = os.getenv("FRONTEND_URL", "http://127.0.0.1:5173").rstrip("/")
+        reset_link = f"{frontend_url}/reset-password#token={token}"
 
         smtp_host = os.getenv("SMTP_HOST")
-        smtp_port = int(os.getenv("SMTP_PORT", "587"))
         smtp_user = os.getenv("SMTP_USER")
         smtp_password = os.getenv("SMTP_PASSWORD")
         smtp_tls = os.getenv("SMTP_TLS", "true").lower() in ("true", "1", "yes")
@@ -29,6 +29,7 @@ class EmailService:
         # Production SMTP dispatch
         if smtp_host:
             try:
+                smtp_port = int(os.getenv("SMTP_PORT", "587"))
                 msg = MIMEMultipart("alternative")
                 msg["Subject"] = "TRACE-X Security: Password Reset Request"
                 msg["From"] = email_from
@@ -64,23 +65,27 @@ class EmailService:
                 msg.attach(MIMEText(html_content, "html"))
 
                 if smtp_ssl:
-                    with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=15) as server:
+                    with smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=15, context=ssl.create_default_context()) as server:
                         if smtp_user and smtp_password:
                             server.login(smtp_user, smtp_password)
                         server.send_message(msg)
                 else:
                     with smtplib.SMTP(smtp_host, smtp_port, timeout=15) as server:
                         if smtp_tls:
-                            server.starttls()
+                            server.starttls(context=ssl.create_default_context())
                         if smtp_user and smtp_password:
                             server.login(smtp_user, smtp_password)
                         server.send_message(msg)
 
-                logger.info(f"Password reset email sent successfully via SMTP to {email}")
+                logger.info("Password reset email sent via SMTP")
                 return
-            except Exception as e:
-                logger.error(f"Failed to dispatch reset email via SMTP to {email}: {e}")
-                # Fall through to logging for resilience in non-fatal paths
+            except Exception:
+                logger.error("Failed to send password reset email via SMTP")
+
+        if os.getenv("ENVIRONMENT", "development").lower() != "development":
+            if not smtp_host:
+                logger.warning("Password reset email unavailable: SMTP_HOST is unset")
+            return
 
         # Development / Fallback mode
         logger.info(

@@ -17,7 +17,7 @@ The TRACE-X Edge Telemetry Agent is a lightweight background daemon designed to 
    │    TRACE-X Telemetry Agent     │
    │  (telemetry_agent/agent.py)    │
    └───────────────┬────────────────┘
-                   │ Authenticated HTTPS/HTTP + Bearer JWT
+                   │ HTTPS with X-Device-Token or Bearer JWT
                    ▼
    ┌────────────────────────────────┐
    │    TRACE-X Backend API         │
@@ -44,7 +44,7 @@ The TRACE-X Edge Telemetry Agent is a lightweight background daemon designed to 
 TRACE-X strictly adheres to real data principles:
 * **No Coordinate Fabrication**: The agent will never simulate fake "live tracking" or inject random coordinate drift when hardware is absent.
 * **Truthful Hardware Detection**: If no physical GPS hardware is found, the agent reports its status truthfully and refuses to fabricate data.
-* **Security & Ownership**: Every telemetry transmission requires an authenticated user token and verifies that the target device belongs to the account.
+* **Device authentication**: Provision a device token in the dashboard under Device Details → Telemetry Credentials. The token authorizes submissions for that device only. Account JWT authentication is also supported.
 
 ---
 
@@ -64,23 +64,30 @@ TRACE-X strictly adheres to real data principles:
 3. **Field Instrument Manual Entry (`GPS_SOURCE=manual`)**:
    Allows an engineer or field operator to submit a real hardware fix read directly from an external handheld GPS receiver without coordinate simulation.
 
+4. **Network estimate (`GPS_SOURCE=network`)**:
+   Uses IP-based geolocation, which can differ substantially from the device's position. If you enable it, supply a trusted HTTPS `NETWORK_GEO_URL` and review that provider's data handling. Use a GPS receiver for hardware tracking.
+
 ---
 
 ## Configuration
 
-Configuration is managed via environment variables (or `.env` file):
+Set these variables in the agent process environment. The agent reads process variables directly:
 
 | Variable | Description | Default |
 |---|---|---|
 | `TRACEX_API_URL` | Base URL of TRACE-X backend | `http://127.0.0.1:8000` |
 | `TRACEX_DEVICE_ID` | Numeric device ID in TRACE-X | *Required* |
+| `TRACEX_DEVICE_TOKEN` | Dedicated telemetry credential for the registered device | Recommended |
 | `TRACEX_API_TOKEN` | Pre-existing JWT access token | Optional (if email/password provided) |
 | `TRACEX_EMAIL` | TRACE-X account email | Optional |
 | `TRACEX_PASSWORD` | TRACE-X account password | Optional |
-| `GPS_SOURCE` | `auto`, `gpsd`, `serial`, or `manual` | `auto` |
+| `GPS_SOURCE` | `auto`, `gpsd`, `serial`, `manual`, or `network` | `auto` |
 | `GPS_SERIAL_PORT` | Serial device path | `/dev/ttyUSB0` |
 | `GPS_SERIAL_BAUDRATE`| Serial baud rate | `9600` |
 | `TELEMETRY_INTERVAL` | Interval between fixes in seconds | `10` |
+| `TRACEX_QUEUE_PATH` | Local offline buffer file. Use a distinct path per device | `~/.tracex_telemetry_queue.json` |
+
+Run one agent per queue file. Use a private directory on Windows where access is enforced by the directory ACL. On POSIX the queue file uses mode `0600`. Supply the token through the process environment or your service manager and keep it out of shell history. The queue holds up to 5,000 fixes and evicts the oldest when full.
 
 ---
 
@@ -96,8 +103,7 @@ python -m telemetry_agent.agent --check-hardware
 ```bash
 export TRACEX_API_URL="http://127.0.0.1:8000"
 export TRACEX_DEVICE_ID=1
-export TRACEX_EMAIL="operator@example.com"
-export TRACEX_PASSWORD="secure_password"
+# Supply TRACEX_DEVICE_TOKEN through the agent's process environment.
 
 python -m telemetry_agent.agent
 ```
@@ -112,6 +118,13 @@ python -m telemetry_agent.agent \
   --manual-acc 5.0 \
   --once
 ```
+
+### 4. Verify buffering and replay with a physical receiver
+
+1. Attach a GPS receiver, run `python -m telemetry_agent.agent --check-hardware`, and start the agent with the registered device's token.
+2. Confirm an initial fix appears for that device on the dashboard.
+3. Disconnect the agent host from the API while keeping the receiver active. Confirm the agent reports buffered readings in its local queue.
+4. Reconnect and confirm the agent acknowledges the batch, drains its queue, and shows the recovered fixes in device location history in capture order. Replaying a previously acknowledged idempotency key should leave one stored fix.
 
 ---
 

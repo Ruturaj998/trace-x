@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { getToken, setToken, loginUser } from "../services/api";
+import { getToken, loginUser } from "../services/api";
 import { useToast } from "../context/useToast";
 import tracexLogo from "../assets/tracex-logo.png";
 import PageMeta from "../components/PageMeta";
@@ -27,9 +27,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const data = await loginUser(email, password);
-
-      setToken(data.access_token);
+      await loginUser(email, password);
       toast.success("Authentication successful. Welcome to TRACE-X.");
       navigate("/");
     } catch (err) {

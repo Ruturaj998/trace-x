@@ -1,16 +1,7 @@
-# React + Vite
+# TRACE-X frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+From this directory, use Node.js 24 LTS and run `npm ci`, then `npm run dev`. Open `http://127.0.0.1:5173` with the API running at `http://127.0.0.1:8000`. On Windows use `npm.cmd` if PowerShell blocks the npm script shim.
 
-Currently, two official plugins are available:
+Run `npm run lint`, `npm test` and `npm run build`. The current Node tests inspect source contracts. Vite writes the production bundle to `dist/`.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+For the included Nginx deployment, build with `VITE_API_BASE_URL=/api` and set `VITE_SITE_URL` to the public HTTPS origin. See the [project README](../README.md) for API setup and the [managed demo plan](../docs/DEMO_DEPLOYMENT.md) for other hosting options.

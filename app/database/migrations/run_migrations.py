@@ -44,6 +44,14 @@ def ensure_migrations_table(conn):
     )
 
 
+def prepare_transaction(conn):
+    if conn.dialect.name == "postgresql":
+        # Serialize schema changes and make legacy UTC conversions independent
+        # of the server or deployment user's configured session timezone.
+        conn.execute(text("SELECT pg_advisory_xact_lock(840384559)"))
+        conn.execute(text("SET LOCAL TIME ZONE 'UTC'"))
+
+
 def get_applied_migrations(conn) -> dict[str, str]:
     """Return dictionary of {version: applied_at_iso} for all applied migrations."""
     ensure_migrations_table(conn)
@@ -90,6 +98,7 @@ def apply_migrations(target_engine=None):
         return
 
     with eng.begin() as conn:
+        prepare_transaction(conn)
         applied = get_applied_migrations(conn)
         pending = [m for m in migrations if m[1] not in applied]
 
@@ -118,6 +127,7 @@ def rollback_migration(target_engine=None):
     migration_map = {m[1]: m for m in migrations}
 
     with eng.begin() as conn:
+        prepare_transaction(conn)
         applied = get_applied_migrations(conn)
         if not applied:
             print("No migrations to rollback.")
@@ -154,6 +164,7 @@ def print_status(target_engine=None):
     migrations = discover_migrations()
 
     with eng.begin() as conn:
+        prepare_transaction(conn)
         applied = get_applied_migrations(conn)
 
     print("=" * 70)

@@ -1,10 +1,14 @@
 import ipaddress
+import hashlib
 import logging
 import os
 import time
 from collections import deque
 from typing import Optional
+from threading import Lock
 from fastapi import HTTPException, Request
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 logger = logging.getLogger("tracex.security")
 
@@ -108,6 +112,7 @@ class RateLimiter:
         self.window_seconds = window_seconds
         self.max_tracked_ips = max_tracked_ips
         self.history: dict[str, deque] = {}
+        self._lock = Lock()
         self._last_cleanup = time.time()
 
     def _cleanup_stale_entries(self, now: float) -> None:
@@ -123,7 +128,8 @@ class RateLimiter:
             del self.history[key]
         self._last_cleanup = now
 
-    def check(self, request: Request, key_prefix: str = "") -> None:
+    def check(self, request: Request, key_prefix: str = "", db: Session | None = None) -> None:
+        """Reserve a request slot before the route makes any business changes."""
         is_testing = os.getenv("TESTING", "false").lower() in ("true", "1")
         is_disabled = os.getenv("DISABLE_RATE_LIMIT", "false").lower() in ("true", "1")
         enable_in_tests = os.getenv("ENABLE_RATE_LIMIT_IN_TESTS", "false").lower() in ("true", "1")
@@ -133,6 +139,37 @@ class RateLimiter:
 
         client_ip = get_client_ip(request)
         key = f"{key_prefix}:{client_ip}"
+        if db is not None and db.get_bind().dialect.name == "postgresql":
+            self._reserve_postgres(db, key)
+            return
+        with self._lock:
+            self._reserve_local(key)
+
+    def _reserve_postgres(self, db: Session, key: str) -> None:
+        bucket = hashlib.sha256(key.encode()).hexdigest()
+        db.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:bucket, 0))"), {"bucket": bucket})
+        db.execute(text("""
+            DELETE FROM rate_limit_hits WHERE ctid IN (
+                SELECT ctid FROM rate_limit_hits WHERE expires_at <= statement_timestamp()
+                LIMIT 128 FOR UPDATE SKIP LOCKED
+            )
+        """))
+        count, retry_after = db.execute(text("""
+            SELECT count(*), ceil(extract(epoch FROM min(expires_at) - statement_timestamp()))
+            FROM rate_limit_hits WHERE bucket = :bucket AND expires_at > statement_timestamp()
+        """), {"bucket": bucket}).one()
+        if count >= self.max_requests:
+            db.commit()
+            raise HTTPException(429, "Too many requests. Please try again later.",
+                                headers={"Retry-After": str(max(1, int(retry_after)))})
+        db.execute(text("""
+            INSERT INTO rate_limit_hits (bucket, expires_at)
+            VALUES (:bucket, statement_timestamp() + :seconds * interval '1 second')
+        """), {"bucket": bucket, "seconds": self.window_seconds})
+        # Failed login and validation outcomes must still consume the reserved slot.
+        db.commit()
+
+    def _reserve_local(self, key: str) -> None:
         now = time.time()
 
         # Periodic cleanup every 60s or if table gets too large

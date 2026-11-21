@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Float, ForeignKey, Index, String
+from sqlalchemy import Float, ForeignKey, Index, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from app.database.base import Base
 from app.database.types import UTCDateTime
@@ -53,6 +54,14 @@ class Location(Base):
         nullable=True,
         index=True,
     )
+
+    @hybrid_property
+    def captured_at(self):
+        return self.recorded_at or self.timestamp
+
+    @captured_at.expression
+    def captured_at(cls):
+        return func.coalesce(cls.recorded_at, cls.timestamp)
 
     device: Mapped["Device"] = relationship(
         back_populates="locations",

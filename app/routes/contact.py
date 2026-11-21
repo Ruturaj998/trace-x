@@ -19,7 +19,7 @@ def submit_contact_form(
     db: Session = Depends(get_db),
 ):
     # 1. Rate limiting check (e.g. max 3 requests per 60s per IP)
-    contact_limiter.check(request, "contact")
+    contact_limiter.check(request, "contact", db)
 
     # 2. Extract client IP safely using trusted proxy resolution
     client_ip = get_client_ip(request)

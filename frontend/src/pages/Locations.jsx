@@ -14,7 +14,7 @@ import {
   getLatestLocation,
 } from "../services/api";
 import RealMap from "../components/RealMap";
-import { isValidLocation, filterValidLocations } from "../utils/coordinates";
+import { getLocationTimestamp, isValidLocation, filterValidLocations } from "../utils/coordinates";
 import PageMeta from "../components/PageMeta";
 
 export default function Locations() {
@@ -338,9 +338,9 @@ export default function Locations() {
                   <span>Last recorded</span>
                 </div>
                 <strong>
-                  {activeLocation.timestamp &&
-                  !isNaN(new Date(activeLocation.timestamp).getTime())
-                    ? new Date(activeLocation.timestamp).toLocaleString()
+                  {getLocationTimestamp(activeLocation) &&
+                  !isNaN(Date.parse(getLocationTimestamp(activeLocation)))
+                    ? new Date(getLocationTimestamp(activeLocation)).toLocaleString()
                     : "N/A"}
                 </strong>
               </div>
@@ -401,9 +401,9 @@ export default function Locations() {
                         {index === 0 ? " (Latest)" : ""}
                       </span>
                       <span style={{ color: "var(--text-muted)" }}>
-                        {loc.timestamp &&
-                        !isNaN(new Date(loc.timestamp).getTime())
-                          ? new Date(loc.timestamp).toLocaleTimeString([], {
+                        {getLocationTimestamp(loc) &&
+                        !isNaN(Date.parse(getLocationTimestamp(loc)))
+                          ? new Date(getLocationTimestamp(loc)).toLocaleTimeString([], {
                               hour: "2-digit",
                               minute: "2-digit",
                             })
