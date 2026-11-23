@@ -1,0 +1,69 @@
+/* Stitch fleet screens: presentation-only layer, scoped to authenticated fleet views. */
+.stitch-fleet {
+  --bg: #f7f6fc;
+  --panel: #ffffff;
+  --panel-2: #f0f1ff;
+  --text: #111732;
+  --text-soft: #59617a;
+  --accent: #245ee6;
+  --accent-soft: #e8edff;
+  --border: #e1e4f0;
+  --color-bg-base: #f7f6fc;
+  --color-bg-surface: #ffffff;
+  --color-bg-surface-elevated: #f0f1ff;
+  --color-text-primary: #111732;
+  --color-text-secondary: #38405a;
+  --color-text-muted: #59617a;
+  --color-accent-lime: #245ee6;
+  --color-accent-cyan: #1849bd;
+  --color-text-inverse: #ffffff;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.stitch-fleet .sidebar { background: #fff; border-right: 1px solid var(--border); color: var(--text); }
+.stitch-fleet .sidebar-brand, .stitch-fleet .nav-item { color: var(--text-soft); }
+.stitch-fleet .nav-item:hover { background: #f0f2ff; color: var(--text); }
+.stitch-fleet .nav-item.active { background: #e7edff; color: #245ee6; }
+.stitch-fleet .main-area, .stitch-fleet .topbar { background: var(--bg); color: var(--text); }
+.stitch-fleet .topbar { border-bottom: 1px solid var(--border); }
+.stitch-fleet .page-content, .stitch-fleet .devices-content { background: var(--bg); }
+.stitch-fleet .dashboard-hud-header, .stitch-fleet .devices-hud-header { border-bottom-color: var(--border); }
+.stitch-fleet .panel, .stitch-fleet .map-panel, .stitch-fleet .device-panel,
+.stitch-fleet .activity-panel, .stitch-fleet .device-card-cyber,
+.stitch-fleet .location-map-card, .stitch-fleet .location-info-card { background: var(--panel); border-color: var(--border); color: var(--text); box-shadow: 0 8px 24px rgba(34, 43, 87, .06); }
+.stitch-fleet .panel h2, .stitch-fleet .panel h3, .stitch-fleet .device-card-name,
+.stitch-fleet .location-info-card strong, .stitch-fleet .location-page-heading h1 { color: var(--text); }
+.stitch-fleet .panel-eyebrow, .stitch-fleet .section-label, .stitch-fleet .devices-eyebrow { color: var(--accent); }
+.stitch-fleet .command-grid { grid-template-columns: minmax(17rem, .8fr) minmax(0, 1.8fr); grid-template-areas: "devices map"; gap: 1rem; }
+.stitch-fleet .command-grid > .map-panel { grid-area: map; }
+.stitch-fleet .command-grid > .device-panel { grid-area: devices; }
+.stitch-fleet .stats-grid { gap: .75rem; }
+.stitch-fleet .stat-card { background: var(--panel); border-color: var(--border); color: var(--text); }
+.stitch-fleet .stat-value, .stitch-fleet .stat-label { color: var(--text); }
+.stitch-fleet .stat-meta, .stitch-fleet .device-card-identifier, .stitch-fleet .device-card-telemetry-row { color: var(--text-soft); }
+.stitch-fleet .devices-stat-pills { display: none; }
+.stitch-fleet .devices-toolbar { background: var(--panel); border-color: var(--border); }
+.stitch-fleet .devices-search-input { background: #fafaff; border-color: var(--border); color: var(--text); }
+.stitch-fleet .filter-tab { color: var(--text-soft); }
+.stitch-fleet .filter-tab.active { background: var(--accent-soft); color: var(--accent); }
+.stitch-fleet .location-page-grid { grid-template-columns: minmax(0, 1.8fr) minmax(18rem, .8fr); gap: 1rem; }
+.stitch-fleet .real-location-map { height: clamp(28rem, 64vh, 44rem) !important; }
+.stitch-fleet .location-info-card { overflow: auto; }
+.stitch-fleet .location-page-heading { align-items: flex-end; }
+.stitch-fleet button:focus-visible, .stitch-fleet a:focus-visible, .stitch-fleet input:focus-visible { outline: 3px solid rgba(36, 94, 230, .3); outline-offset: 2px; }
+
+@media (max-width: 980px) {
+  .stitch-fleet .command-grid, .stitch-fleet .location-page-grid { grid-template-columns: 1fr; }
+  .stitch-fleet .command-grid { grid-template-areas: "map" "devices"; }
+  .stitch-fleet .real-location-map { height: 27rem !important; }
+}
+
+@media (max-width: 640px) {
+  .stitch-fleet .dashboard-hud-header, .stitch-fleet .devices-hud-header, .stitch-fleet .location-page-heading { align-items: flex-start; flex-direction: column; gap: .75rem; }
+  .stitch-fleet .real-location-map { height: 22rem !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stitch-fleet *, .stitch-fleet *::before, .stitch-fleet *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

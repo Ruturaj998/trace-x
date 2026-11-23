@@ -44,6 +44,7 @@ import { NavProvider } from "./context/NavContext.jsx";
 import { initGA, trackPageView } from "./utils/analytics";
 import PageMeta from "./components/PageMeta";
 import "./App.css";
+import "./styles/stitch-fleet.css";
 
 import DeviceDetailModal from "./components/DeviceDetailModal";
 import AddDeviceModal from "./components/AddDeviceModal";
@@ -168,7 +169,7 @@ function Dashboard() {
         : "";
 
   return (
-    <div className="app-shell">
+    <div className="app-shell stitch-fleet">
       <PageMeta
         title="Device Security Command Center"
         description="Monitor registered devices, geographic telemetry, and security events."
@@ -332,9 +333,9 @@ function ProtectedRoute({ children }) {
 }
 
 
-function PageLayout({ children }) {
+function PageLayout({ children, fleet = false }) {
   return (
-    <div className="app-shell">
+    <div className={`app-shell${fleet ? " stitch-fleet" : ""}`}>
       <Sidebar />
 
       <main className="main-area">
@@ -408,7 +409,7 @@ function App() {
             path="/devices"
             element={
               <ProtectedRoute>
-                <PageLayout>
+                <PageLayout fleet>
                   <Devices />
                 </PageLayout>
               </ProtectedRoute>
@@ -419,7 +420,7 @@ function App() {
             path="/locations"
             element={
               <ProtectedRoute>
-                <PageLayout>
+                <PageLayout fleet>
                   <Locations />
                 </PageLayout>
               </ProtectedRoute>
