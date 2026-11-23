@@ -17,6 +17,7 @@ import Security from "./pages/Security";
 import Settings from "./pages/Settings";
 
 import Login from "./pages/Login";
+import Landing from "./pages/Landing";
 import Register from "./pages/Register";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -171,7 +172,7 @@ function Dashboard() {
       <PageMeta
         title="Device Security Command Center"
         description="Monitor registered devices, geographic telemetry, and security events."
-        path="/"
+        path="/dashboard"
         noIndex={true}
       />
       <Sidebar />
@@ -352,7 +353,7 @@ function App() {
       <ToastProvider>
         <NavProvider>
           <Routes>
-          <Route path="/dashboard" element={<Navigate to="/" replace />} />
+          <Route path="/" element={<Landing />} />
 
           <Route
             path="/login"
@@ -395,7 +396,7 @@ function App() {
           />
 
           <Route
-            path="/"
+            path="/dashboard"
             element={
               <ProtectedRoute>
                 <Dashboard />

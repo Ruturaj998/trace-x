@@ -11,7 +11,7 @@ export default function Register() {
 
   useEffect(() => {
     if (getToken()) {
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
     }
   }, [navigate]);
 

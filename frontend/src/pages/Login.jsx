@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { getToken, loginUser } from "../services/api";
 import { useToast } from "../context/useToast";
-import tracexLogo from "../assets/tracex-logo.png";
+import signInMap from "../assets/stitch-sign-in-map.png";
 import PageMeta from "../components/PageMeta";
+import { ArrowLeft, ArrowRight, AtSign, Eye, EyeOff, KeyRound, LockKeyhole, Navigation, Radar, ShieldCheck, UserRound } from "lucide-react";
+import "./stitch-public.css";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -11,7 +13,7 @@ export default function Login() {
 
   useEffect(() => {
     if (getToken()) {
-      navigate("/", { replace: true });
+      navigate("/dashboard", { replace: true });
     }
   }, [navigate]);
 
@@ -19,6 +21,7 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
 
   const handleLogin = async (event) => {
     event.preventDefault();
@@ -29,7 +32,7 @@ export default function Login() {
     try {
       await loginUser(email, password);
       toast.success("Authentication successful. Welcome to TRACE-X.");
-      navigate("/");
+      navigate("/dashboard");
     } catch (err) {
       console.error("Login error:", err);
       const msg = err.message || "Unable to connect to TRACE-X backend.";
@@ -41,77 +44,73 @@ export default function Login() {
   };
 
   return (
-    <div className="login-page">
+    <main className="stitch-page stitch-signin">
       <PageMeta
         title="Command Center Sign In"
         description="Sign in to your TRACE-X device security command center to monitor registered hardware telemetry, GPS coordinates, and lost-device status."
         path="/login"
       />
+      <header className="stitch-login-mobile-header">
+        <Link to="/" aria-label="Back to TRACE-X home"><ArrowLeft size={20} aria-hidden="true" /></Link>
+        <span>Operator Auth</span>
+        <span className="stitch-user-link"><UserRound size={17} aria-hidden="true" /></span>
+      </header>
+      <div className="stitch-login-shell">
+        <aside className="stitch-login-visual" aria-label="Example location preview">
+          <img src={signInMap} alt="" className="stitch-login-map" />
+          <div className="stitch-login-map-grid" />
+          <Link className="stitch-brand" to="/"><Radar size={24} aria-hidden="true" />TRACE-X <span>Secure node</span></Link>
+          <div className="stitch-map-reticle" aria-hidden="true">
+            <div><Navigation size={23} /><span>Sector 9</span></div>
+          </div>
+          <div className="stitch-login-map-footer">
+            <div className="stitch-mono">LAT 37.7749° N <span>│</span> LON 122.4194° W</div>
+            <div className="stitch-map-fleet"><ShieldCheck size={21} aria-hidden="true" /><div><strong>Location preview</strong><span>Example coordinates from San Francisco</span></div></div>
+            <small>Map data © Google</small>
+          </div>
+        </aside>
+        <section className="stitch-login-panel" aria-labelledby="signin-title">
+          <div className="stitch-login-state" role="status">
+            <span><i /> Session</span><strong>{loading ? "Submitting" : error ? "Sign-in failed" : "Ready"}</strong>
+          </div>
+          <div className="stitch-login-heading">
+            <span className="stitch-eyebrow"><KeyRound size={14} aria-hidden="true" /> Restricted access portal</span>
+            <span className="stitch-login-mobile-icon"><Radar size={24} aria-hidden="true" /></span>
+            <h1 id="signin-title">Sign in to TRACE-X</h1>
+            <p>Access your registered devices and location telemetry.</p>
+          </div>
 
-      <div className="login-card">
-        <img
-          src={tracexLogo}
-          alt="TRACE-X — Device Security"
-          className="brand-logo login-logo"
-        />
-
-        <span className="login-label">TRACE-X / SECURITY</span>
-
-        <h1>Command Center</h1>
-
-        <p>
-          Sign in to access your device security dashboard.
-        </p>
-
-        <form onSubmit={handleLogin}>
-          <label htmlFor="email">Email</label>
-
-          <input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder="Enter your email"
-            autoComplete="email"
-            required
-          />
-
-          <label htmlFor="password">Password</label>
-
-          <input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="Enter your password"
-            autoComplete="current-password"
-            required
-          />
-
-          {error && (
-            <div className="login-error">
-              {error}
+          <form className="stitch-login-form" onSubmit={handleLogin} aria-busy={loading}>
+            <label htmlFor="email">Operator email</label>
+            <div className="stitch-login-field">
+              <AtSign size={18} aria-hidden="true" />
+              <input id="email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Enter your email" autoComplete="email" required />
             </div>
-          )}
 
-          <button type="submit" disabled={loading}>
-            {loading ? "AUTHENTICATING..." : "SIGN IN"}
-          </button>
-        </form>
+            <div className="stitch-login-label-row">
+              <label htmlFor="password">Password</label>
+              <Link className="stitch-forgot-link" to="/forgot-password">Forgot password?</Link>
+            </div>
+            <div className="stitch-login-field">
+              <LockKeyhole size={17} aria-hidden="true" />
+              <input id="password" name="password" type={passwordVisible ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter your password" autoComplete="current-password" required />
+              <button className="stitch-password-toggle" type="button" aria-label={passwordVisible ? "Hide password" : "Show password"} onClick={() => setPasswordVisible(!passwordVisible)}>
+                {passwordVisible ? <EyeOff size={19} aria-hidden="true" /> : <Eye size={19} aria-hidden="true" />}
+              </button>
+            </div>
 
-        <div style={{ marginTop: "1.5rem", display: "flex", justifyContent: "space-between", fontSize: "0.9rem" }}>
-            <Link to="/forgot-password" style={{ color: "var(--text-soft)" }}>Forgot Password?</Link>
-            <Link to="/register" style={{ color: "var(--accent)" }}>Create Account</Link>
-        </div>
+            {error && <div className="stitch-login-error" role="alert">{error}</div>}
+            <button className="stitch-button stitch-button-primary stitch-login-submit" type="submit" disabled={loading}>
+              {loading ? "AUTHENTICATING..." : "Sign in"} {loading ? null : <ArrowRight size={18} aria-hidden="true" />}
+            </button>
+          </form>
 
-        <div style={{ marginTop: "1.4rem", paddingTop: "1rem", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "center", gap: "16px", fontSize: "0.8rem" }}>
-            <Link to="/faq" style={{ color: "var(--text-muted)", textDecoration: "none" }}>FAQ</Link>
-            <span style={{ color: "var(--border)" }}>•</span>
-            <Link to="/contact" style={{ color: "var(--text-muted)", textDecoration: "none" }}>Support</Link>
-            <span style={{ color: "var(--border)" }}>•</span>
-            <Link to="/privacy" style={{ color: "var(--text-muted)", textDecoration: "none" }}>Privacy</Link>
-        </div>
+          <p className="stitch-login-register">Need an account? <Link to="/register">Create account</Link></p>
+          <nav className="stitch-login-footer" aria-label="Sign-in help">
+            <Link to="/faq">FAQ</Link><Link to="/contact">Support</Link><Link to="/privacy">Privacy policy</Link>
+          </nav>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }

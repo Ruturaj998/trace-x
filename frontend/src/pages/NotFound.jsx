@@ -80,7 +80,7 @@ export default function NotFound() {
           >
             {isAuthenticated ? (
               <Link
-                to="/"
+                to="/dashboard"
                 className="public-btn-primary"
                 style={{ width: "100%", justifyContent: "center" }}
               >

@@ -50,7 +50,7 @@ export default function PublicNav() {
         {/* Action CTAs */}
         <div className="public-nav-actions">
           {isAuthenticated ? (
-            <Link to="/" className="public-btn-primary">
+            <Link to="/dashboard" className="public-btn-primary">
               <Shield size={14} />
               <span>COMMAND CENTER</span>
             </Link>
@@ -95,7 +95,7 @@ export default function PublicNav() {
             <div className="mobile-nav-divider" />
             {isAuthenticated ? (
               <Link
-                to="/"
+                to="/dashboard"
                 className="mobile-nav-link primary"
                 onClick={() => setMobileMenuOpen(false)}
               >

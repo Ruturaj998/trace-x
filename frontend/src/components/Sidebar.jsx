@@ -16,7 +16,7 @@ import { useNav } from "../context/useNav";
 import tracexLogo from "../assets/tracex-logo.png";
 
 const mainNavItems = [
-  { label: "Command Center", icon: LayoutDashboard, path: "/" },
+  { label: "Command Center", icon: LayoutDashboard, path: "/dashboard" },
   { label: "Devices", icon: Smartphone, path: "/devices" },
   { label: "Locations", icon: Map, path: "/locations" },
   { label: "Activity Log", icon: Activity, path: "/activity" },
@@ -59,12 +59,7 @@ export default function Sidebar() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isMobileNavOpen, closeMobileNav]);
 
-  const isActive = (path) => {
-    if (path === "/") {
-      return location.pathname === "/";
-    }
-    return location.pathname.startsWith(path);
-  };
+  const isActive = (path) => location.pathname.startsWith(path);
 
   return (
     <>
@@ -87,10 +82,10 @@ export default function Sidebar() {
         <div className="brand">
           <div
             className="brand-link"
-            onClick={() => handleNavClick("/")}
+            onClick={() => handleNavClick("/dashboard")}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === "Enter" && handleNavClick("/")}
+            onKeyDown={(e) => e.key === "Enter" && handleNavClick("/dashboard")}
             aria-label="TRACE-X Dashboard Home"
           >
             <img
