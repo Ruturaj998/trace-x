@@ -64,12 +64,16 @@ p { color: var(--muted); }
 .primary:hover { background: #a7f6fa; }
 
 .preview {
-  display: block;
-  width: 100%;
-  height: auto;
+  display: grid;
+  place-items: center;
+  min-height: 15rem;
+  aspect-ratio: 16 / 9;
   border: 1px solid var(--border);
   border-radius: .75rem;
+  background: radial-gradient(ellipse at center, #184357, #101d2a 72%);
 }
+
+.preview img { width: min(55%, 13rem); height: auto; }
 
 .features {
   display: grid;
