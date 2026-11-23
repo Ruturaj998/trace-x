@@ -1,0 +1,40 @@
+name: Publish TRACE-X project page
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'frontend/public/favicon.svg'
+      - 'frontend/public/og-preview.jpg'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/configure-pages@v5
+      - name: Assemble the public site
+        run: |
+          mkdir _site
+          cp site/index.html site/style.css _site/
+          cp frontend/public/favicon.svg frontend/public/og-preview.jpg _site/
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
